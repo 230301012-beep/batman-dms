@@ -6,12 +6,18 @@
 <title>SENTINEL — Driver Safety Intelligence</title>
 
 <!-- face-api.js -->
-<script defer src="./js/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js/dist/face-api.min.js"></script>
 
+<!-- ─── FIREBASE CDN ─── -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@200;300;400;600;800&display=swap');
 
 :root {
+
   --bg: #050505;
   --surface: rgba(10, 10, 10, 0.9);
   --surface2: rgba(20, 20, 20, 0.7);
@@ -29,12 +35,17 @@
   --text: #e5e5e5;
   --text-dim: #888;
 
-  --mono: 'Share Tech Mono', monospace;
-  --head: 'Exo 2', sans-serif;
-  --body: 'Rajdhani', sans-serif;
+--mono: 'Inter', sans-serif; /* keep but STOP using it */
+--head: 'Poppins', sans-serif;
+--body: 'Inter', sans-serif;
 
   --glow-accent: 0 0 20px rgba(250, 204, 21, 0.4);
   --glow-red: 0 0 30px rgba(239, 68, 68, 0.5);
+}
+
+body, input, button, table, th, td {
+  font-family: 'Inter', sans-serif !important;
+}
   .bat-overlay {
   position: absolute;
   top: 10px;
@@ -48,7 +59,9 @@
 
   animation: batPulse 3s infinite ease-in-out;
 }
-
+body {
+  background: red !important;
+}
 @keyframes batPulse {
   0%,100% {
     opacity: 0.1;
@@ -59,8 +72,14 @@
     transform: scale(1.05);
   }
 }
+   .panel-title,
+.nav-tab,
+.btn,
+.metric-val,
+.data-table {
+  font-family: 'Inter', sans-serif !important;
+  letter-spacing: 0.5px !important;
 }
-   
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -145,7 +164,7 @@ body::after {
 }
 
 .header-sub {
-  font-family: var(--mono);
+  font-family: var(--body);
   font-size: 0.7rem;
   color: var(--accent-dim);
   letter-spacing: 3px;
@@ -159,9 +178,9 @@ body::after {
     flex-shrink: 0;
   }
   .nav-tab {
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.72rem;
-    letter-spacing: 1.5px;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
     padding: 8px 18px;
     background: var(--surface2);
@@ -196,7 +215,7 @@ body::after {
     opacity: 0.5;
   }
   .panel-title {
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.65rem;
     letter-spacing: 3px;
     color: var(--accent);
@@ -216,9 +235,9 @@ body::after {
 
   /* ─── BUTTONS ─── */
  .btn {
-  font-family: var(--mono);
+  font-family: var(--body);
   font-size: 0.75rem;
-  letter-spacing: 2px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   padding: 12px 24px;
 
@@ -315,7 +334,7 @@ video, canvas.overlay {
   .input-group { margin-bottom: 16px; }
   .input-group label {
     display: block;
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.65rem;
     letter-spacing: 2px;
     color: var(--text-dim);
@@ -327,7 +346,7 @@ video, canvas.overlay {
     background: rgba(0, 200, 255, 0.04);
     border: 1px solid var(--border);
     color: var(--text);
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.9rem;
     padding: 10px 14px;
     outline: none;
@@ -354,7 +373,7 @@ video, canvas.overlay {
   /* ─── STATUS BADGE ─── */
   .badge {
     display: inline-block;
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.7rem;
     letter-spacing: 1.5px;
     text-transform: uppercase;
@@ -376,7 +395,7 @@ video, canvas.overlay {
     border: 1px solid var(--border);
   }
   .metric-val {
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 1.6rem;
     font-weight: 400;
     color: var(--accent);
@@ -402,12 +421,12 @@ video, canvas.overlay {
   .data-table {
     width: 100%;
     border-collapse: collapse;
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.75rem;
   }
   .data-table th {
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 0.5px;
     color: var(--accent);
     font-size: 0.62rem;
     padding: 8px 12px;
@@ -486,7 +505,7 @@ video, canvas.overlay {
     animation: alertFlash 0.5s infinite;
   }
   #alert-banner p {
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.8rem;
     color: var(--text-dim);
     margin-top: 8px;
@@ -504,7 +523,7 @@ video, canvas.overlay {
     text-align: center;
   }
   #recog-confidence {
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.75rem;
     color: var(--text-dim);
     letter-spacing: 2px;
@@ -525,7 +544,7 @@ video, canvas.overlay {
 
   /* ─── MODEL STATUS ─── */
   #model-status {
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.7rem;
     color: var(--yellow);
     letter-spacing: 2px;
@@ -547,7 +566,7 @@ video, canvas.overlay {
 
   /* ─── AUTHENTICATED INFO ─── */
   #authed-info {
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.75rem;
     color: var(--green);
     letter-spacing: 2px;
@@ -560,7 +579,7 @@ video, canvas.overlay {
 
   /* ─── MINI LOG ─── */
   #mini-log {
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.65rem;
     color: var(--text-dim);
     max-height: 80px;
@@ -573,7 +592,7 @@ video, canvas.overlay {
   .log-line span { color: var(--accent); }
 
   .separator { width: 100%; height: 1px; background: var(--border); margin: 6px 0; }
-  .text-sm { font-size: 0.75rem; color: var(--text-dim); font-family: var(--mono); letter-spacing: 1px; }
+  .text-sm { font-size: 0.75rem; color: var(--text-dim); font-family: var(--body); letter-spacing: 1px; }
   .mt-8 { margin-top: 8px; }
   .mt-14 { margin-top: 14px; }
 
@@ -653,7 +672,7 @@ video, canvas.overlay {
     padding: 4px 10px;
     background: rgba(0,200,255,0.07);
     border: 1px solid var(--border);
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.7rem;
     color: var(--text-dim);
     margin: 3px;
@@ -661,7 +680,7 @@ video, canvas.overlay {
   .user-pill span { color: var(--accent); }
 
   #face-mesh-info {
-    font-family: var(--mono);
+    font-family: var(--body);
     font-size: 0.6rem;
     color: var(--text-dim);
     letter-spacing: 1px;
@@ -683,10 +702,11 @@ video, canvas.overlay {
 }
 </style>
 </head>
-<body>
-
+<body style="display:none;">
 <canvas id="bg-canvas"></canvas>
-
+<button onclick="firebaseLogout()" style="position:absolute; top:20px; right:20px;">
+  Logout
+</button>
 <!-- ─── ALERT OVERLAY ─── -->
 <div id="alert-overlay"></div>
 <div id="alert-banner">
@@ -695,9 +715,37 @@ video, canvas.overlay {
 </div>
 
 <!-- ═══════════════════════════════════════════
+     SCREEN 0: FIREBASE LOGIN
+════════════════════════════════════════════ -->
+<div id="screen-login" class="screen active">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:20px;position:relative;z-index:2;">
+    <div style="font-family:var(--head);font-weight:800;font-size:2rem;letter-spacing:6px;color:var(--accent);">BATMAN <span style="font-weight:300;">DMS</span></div>
+    <div style="font-family:var(--body);font-size:0.65rem;letter-spacing:3px;color:var(--text-dim);margin-top:-12px;">DRIVER MONITORING INTELLIGENCE · FIREBASE EDITION</div>
+    <div class="panel" style="width:380px;">
+      <div class="panel-title">Admin Authentication</div>
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="admin@example.com" />
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" />
+      </div>
+      <button class="btn large" style="width:100%;" onclick="firebaseLogin()">▶ SIGN IN</button>
+      <div class="separator mt-8"></div>
+      <button class="btn" style="width:100%;margin-top:8px;" onclick="firebaseRegisterAdmin()">CREATE ADMIN ACCOUNT</button>
+      <div id="login-error" style="color:var(--red);font-family:var(--body);font-size:0.7rem;margin-top:10px;display:none;padding:8px;border:1px solid var(--red);background:rgba(239,68,68,0.05);"></div>
+      <div style="font-family:var(--body);font-size:0.6rem;color:var(--text-dim);margin-top:12px;letter-spacing:1px;">
+        First time? Enter your email + password and click CREATE ADMIN ACCOUNT.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
      SCREEN 1: REGISTRATION
 ════════════════════════════════════════════ -->
-<div id="screen-register" class="screen active">
+<div id="screen-register" class="screen">
   <div class="header">
     <div class="logo">
 <img src="./images/batman.png" class="bat-overlay">
@@ -829,7 +877,7 @@ video, canvas.overlay {
   <span>BATMAN DMS</span>
 </div>
     <div class="header-sub" id="monitor-driver-label">DRIVER: UNKNOWN</div>
-    <div style="font-family:var(--mono);font-size:0.7rem;color:var(--text-dim)" id="monitor-clock"></div>
+    <div style="font-family:var(--body);font-size:0.7rem;color:var(--text-dim)" id="monitor-clock"></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab" onclick="showScreen('register')">01 / REGISTER</button>
@@ -922,7 +970,7 @@ video, canvas.overlay {
       </div>
       <div class="panel" style="flex:1;overflow:hidden;">
         <div class="panel-title">Event Log</div>
-        <div id="event-log" style="font-family:var(--mono);font-size:0.62rem;color:var(--text-dim);overflow-y:auto;max-height:200px;"></div>
+        <div id="event-log" style="font-family:var(--body);font-size:0.62rem;color:var(--text-dim);overflow-y:auto;max-height:200px;"></div>
       </div>
     </div>
   </div>
@@ -971,7 +1019,7 @@ video, canvas.overlay {
 <!-- ═══════════════════════════════════════════
      JAVASCRIPT
 ════════════════════════════════════════════ -->
-<script>
+<script defer>
 /*
  * SENTINEL — Driver Monitoring System
  * "Our system first authenticates the driver using facial recognition,
@@ -981,7 +1029,7 @@ video, canvas.overlay {
  */
 
 // ─── CONFIG ───────────────────────────────
-const MODELS_URL = './models';
+const MODELS_URL = '/models';
 const CAPTURE_TARGET = 80;
 const EAR_CLOSED_THRESHOLD = 0.20;
 const EAR_OPEN_THRESHOLD = 0.25;
@@ -1023,57 +1071,124 @@ let buzzInterval = null;
 let currentSessionId = null;
 let monitorLoopActive = false;
 
-// ─── INDEXEDDB ────────────────────────────
-let db = null;
+// ─── FIREBASE CONFIG ──────────────────────
+// 🔴 PASTE YOUR FIREBASE CONFIG HERE (from Firebase Console → Project Settings → Your Apps):
+const firebaseConfig = {
+  apiKey: "AIzaSyA0PiVTfOWz5rp8QkTmtWshaN7HCbPAMvo",
+  authDomain: "batman-dms.firebaseapp.com",
+  projectId: "batman-dms",
+  storageBucket: "batman-dms.firebasestorage.app",
+  messagingSenderId: "946205444821",
+  appId: "1:946205444821:web:752815c785ba31e977305c",
+  measurementId: "G-SRDCTZF2RQ"
+};
 
-function openDB() {
-  return new Promise((res, rej) => {
-    const req = indexedDB.open('SentinelDMS', 3);
-    req.onupgradeneeded = e => {
-      const d = e.target.result;
-      if (!d.objectStoreNames.contains('drivers')) {
-        d.createObjectStore('drivers', { keyPath: 'name' });
-      }
-      if (!d.objectStoreNames.contains('logs')) {
-        const ls = d.createObjectStore('logs', { keyPath: 'id', autoIncrement: true });
-        ls.createIndex('name', 'name', { unique: false });
-      }
-    };
-    req.onsuccess = e => { db = e.target.result; res(db); };
-    req.onerror = e => rej(e);
-  });
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const fbAuth  = firebase.auth();
+
+// ─── FIREBASE AUTH ────────────────────────
+async function firebaseLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  try {
+    await fbAuth.signInWithEmailAndPassword(email, pass);
+  } catch(e) {
+    errEl.textContent = '⚠ ' + e.message;
+    errEl.style.display = 'block';
+  }
 }
 
-function dbPut(store, data) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, 'readwrite');
-    tx.objectStore(store).put(data).onsuccess = e => res(e.target.result);
-    tx.onerror = rej;
-  });
+async function firebaseRegisterAdmin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  if (!email || pass.length < 6) {
+    errEl.textContent = '⚠ Enter a valid email and password (min 6 chars).';
+    errEl.style.display = 'block';
+    return;
+  }
+  try {
+    await fbAuth.createUserWithEmailAndPassword(email, pass);
+    sysLog(`Admin account created: ${email}`);
+  } catch(e) {
+    errEl.textContent = '⚠ ' + e.message;
+    errEl.style.display = 'block';
+  }
 }
 
-function dbGetAll(store) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, 'readonly');
-    tx.objectStore(store).getAll().onsuccess = e => res(e.target.result);
-    tx.onerror = rej;
-  });
+function firebaseLogout() {
+  if (!confirm('Sign out of SENTINEL DMS?')) return;
+  fbAuth.signOut();
+  sysLog('Signed out');
 }
 
-function dbDelete(store, key) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, 'readwrite');
-    tx.objectStore(store).delete(key).onsuccess = () => res();
-    tx.onerror = rej;
-  });
+// 🔥 SINGLE AUTH STATE HANDLER (FINAL)
+fbAuth.onAuthStateChanged(user => {
+  if (user) {
+    sysLog(`Authenticated: ${user.email}`);
+
+    document.body.style.display = "block";
+
+    document.getElementById('screen-login').classList.remove('active');
+
+    const anyActive = [...document.querySelectorAll('.screen')].some(
+      s => s.id !== 'screen-login' && s.classList.contains('active')
+    );
+
+    if (!anyActive) showScreen('register');
+
+  } else {
+    document.body.style.display = "block";
+
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+
+    document.getElementById('screen-login').classList.add('active');
+  }
+});
+
+// ─── FIRESTORE DB WRAPPERS ────────────────
+// Drop-in replacements for IndexedDB functions.
+// All call signatures are IDENTICAL — rest of code unchanged.
+
+async function openDB() {
+  // Firebase is initialized above — this is a no-op kept for init() compatibility
+  return Promise.resolve();
 }
 
-function dbClear(store) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, 'readwrite');
-    tx.objectStore(store).clear().onsuccess = () => res();
-    tx.onerror = rej;
-  });
+async function dbPut(store, data) {
+  if (store === 'drivers') {
+    // Use driver name as document ID (mirrors IndexedDB keyPath: 'name')
+    await db.collection('drivers').doc(data.name).set(data);
+  } else {
+    // logs use auto-generated Firestore document IDs
+    await db.collection(store).add(data);
+  }
+}
+
+async function dbGetAll(store) {
+  try {
+    const snap = await db.collection(store).orderBy('timestamp').get();
+    return snap.docs.map(d => d.data());
+  } catch(e) {
+    // Fallback if no index or timestamp field (first run)
+    const snap = await db.collection(store).get();
+    return snap.docs.map(d => d.data());
+  }
+}
+
+async function dbDelete(store, key) {
+  await db.collection(store).doc(key).delete();
+}
+
+async function dbClear(store) {
+  const snap = await db.collection(store).get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
 }
 
 // ─── BACKGROUND CANVAS ────────────────────
@@ -1241,7 +1356,7 @@ async function startRegistration() {
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(box.x, box.y - 24, 180, 22);
       ctx.fillStyle = '#facc15';
-      ctx.font = '11px Share Tech Mono';
+      ctx.font = '500 12px Inter';
       ctx.fillText(`CAPTURING ${captureCount}/${CAPTURE_TARGET}`, box.x + 4, box.y - 8);
       // landmarks dots
       drawLandmarks(ctx, det.landmarks.positions, '#facc15', 1.5);
@@ -1263,7 +1378,7 @@ async function startRegistration() {
       ctx.lineWidth = 1;
       ctx.strokeRect(canvas.width/2 - 80, canvas.height/2 - 100, 160, 200);
       ctx.fillStyle = '#ff2244';
-      ctx.font = '11px Share Tech Mono';
+      ctx.font = '500 12px Inter';
       ctx.fillText('NO FACE DETECTED', canvas.width/2 - 70, canvas.height/2 - 106);
     }
   }, 100);
@@ -1274,17 +1389,17 @@ async function saveDriver() {
   sysLog(`Saving ${regName} — ${capturedDescriptors.length} descriptors`);
 
   const serializableDescs = capturedDescriptors.map(d => Array.from(d));
-  await dbPut('drivers', {
-    name: regName,
-    descriptors: serializableDescs,
-    timestamp_registered: new Date().toISOString()
-  });
+ await db.collection("drivers").doc(regName).set({
+  name: regName,
+  descriptors: serializableDescs,
+  createdAt: new Date()
+});
 
   isRegistering = false;
   document.getElementById('start-reg-btn').disabled = false;
   document.getElementById('capture-status').textContent = `✓ ${regName} registered!`;
   document.getElementById('reg-name').value = '';
-  sysLog(`✓ Driver ${regName} saved to IndexedDB`);
+  sysLog(`✓ Driver ${regName} saved to Firestore`);
   await loadFaceMatcher();
   refreshRegisteredUsers();
 }
@@ -1356,10 +1471,10 @@ async function startAuth() {
         ctx.strokeRect(box.x, box.y, box.width, box.height);
         ctx.fillStyle = 'rgba(0,0,0,0.7)';
         ctx.fillRect(box.x, box.y - 50, 200, 48);
-        ctx.font = '13px Exo 2';
+        ctx.font = '13px Inter';
         ctx.fillStyle = isKnown ? '#00ff88' : '#ff2244';
         ctx.fillText(isKnown ? `✓ ${match.label}` : '✗ UNKNOWN', box.x + 6, box.y - 32);
-        ctx.font = '10px Share Tech Mono';
+        ctx.font = '500 12px Inter';
         ctx.fillStyle = 'rgba(180,210,240,0.7)';
         ctx.fillText(`CONF: ${confPct}%  DIST: ${match.distance.toFixed(3)}`, box.x + 6, box.y - 16);
 
@@ -1382,7 +1497,7 @@ async function startAuth() {
         ctx.lineWidth = 1;
         ctx.strokeRect(box.x, box.y, box.width, box.height);
         ctx.fillStyle = '#ffcc00';
-        ctx.font = '11px Share Tech Mono';
+        ctx.font = '500 12px Inter';
         ctx.fillText('NO DRIVERS REGISTERED', box.x, box.y - 6);
         document.getElementById('recog-result').textContent = 'No drivers registered';
         document.getElementById('recog-result').style.color = 'var(--yellow)';
@@ -1416,7 +1531,7 @@ async function refreshRecentEntries() {
   const recent = logs.slice(-3).reverse();
   if (!recent.length) { container.innerHTML = '<span class="text-sm">No entries yet.</span>'; return; }
   container.innerHTML = recent.map(e =>
-    `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:0.7rem;">
+    `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-family:var(--body);font-size:0.7rem;">
       <span style="color:var(--green)">✓ ${e.name}</span>
       <span style="float:right;color:var(--text-dim)">${e.entry_time}</span>
     </div>`
@@ -1700,7 +1815,7 @@ function startMonitoring() {
     // Draw HUD text on canvas
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(0, 0, 200, 70);
-    ctx.font = '10px Share Tech Mono';
+    ctx.font = '500 12px Inter';
     ctx.fillStyle = eyesClosed ? '#ff2244' : '#facc15';
     ctx.fillText(`EAR: ${earAvg.toFixed(3)} [${eyesClosed ? 'CLOSED' : 'OPEN'}]`, 8, 16);
     ctx.fillStyle = mar > YAWN_THRESHOLD ? '#ffcc00' : '#facc15';
@@ -1751,6 +1866,17 @@ function triggerAlert() {
   document.getElementById('alert-banner').style.display = 'block';
   addEvent('🚨 CRITICAL ALERT TRIGGERED', 'var(--red)');
   if (soundEnabled) startBuzzer();
+  // ─── Log drowsiness event to Firestore ───
+  const user = fbAuth.currentUser;
+  db.collection('logs').add({
+    name: currentDriver || 'unknown',
+    type: 'drowsiness_alert',
+    status: 'critical',
+    entry_time: new Date().toLocaleTimeString('en-US', { hour12: false }),
+    date: new Date().toLocaleDateString('en-GB'),
+    timestamp: Date.now(),
+    uid: user ? user.uid : null
+  }).catch(e => sysLog('⚠ Firestore log error: ' + e.message));
 }
 
 function dismissAlert() {
@@ -1832,7 +1958,7 @@ function addEvent(msg, color) {
 // ─── INIT ─────────────────────────────────
 async function init() {
   await openDB();
-  sysLog('IndexedDB initialized');
+  sysLog('Firebase Firestore initialized');
   await loadModels();
   await startCamera('reg-video', 'register');
   await refreshRecentEntries();
@@ -1841,7 +1967,7 @@ async function init() {
   // Dismiss alert on click
   document.getElementById('alert-banner').addEventListener('click', dismissAlert);
 }
-
+ 
 init();
 </script>
 </body>
