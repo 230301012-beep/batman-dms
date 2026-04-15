@@ -4,738 +4,464 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SENTINEL — Driver Safety Intelligence</title>
-
-<!-- face-api.js -->
 <script src="https://cdn.jsdelivr.net/npm/face-api.js/dist/face-api.min.js"></script>
-
-<!-- ─── FIREBASE CDN ─── -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-
 :root {
-
   --bg: #050505;
   --surface: rgba(10, 10, 10, 0.9);
   --surface2: rgba(20, 20, 20, 0.7);
-
   --border: rgba(250, 204, 21, 0.15);
   --border-bright: rgba(250, 204, 21, 0.4);
-
   --accent: #facc15;
   --accent-dim: rgba(250, 204, 21, 0.3);
-
   --green: #22c55e;
   --yellow: #facc15;
   --red: #ef4444;
-
   --text: #e5e5e5;
   --text-dim: #888;
-
---mono: 'Inter', sans-serif; /* keep but STOP using it */
---head: 'Poppins', sans-serif;
---body: 'Inter', sans-serif;
-
+  --mono: 'Inter', sans-serif;
+  --head: 'Inter', sans-serif;
+  --body: 'Inter', sans-serif;
   --glow-accent: 0 0 20px rgba(250, 204, 21, 0.4);
   --glow-red: 0 0 30px rgba(239, 68, 68, 0.5);
 }
 
-body, input, button, table, th, td {
-  font-family: 'Inter', sans-serif !important;
-}
-  .bat-overlay {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 80px;
-
-  opacity: 0.15;           /* subtle look */
-  pointer-events: none;    /* doesn't block clicks */
-
-  filter: drop-shadow(0 0 10px rgba(250,204,21,0.4));
-
-  animation: batPulse 3s infinite ease-in-out;
-}
-
-@keyframes batPulse {
-  0%,100% {
-    opacity: 0.1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.25;
-    transform: scale(1.05);
-  }
-}
-   .panel-title,
-.nav-tab,
-.btn,
-.metric-val,
-.data-table {
-  font-family: 'Inter', sans-serif !important;
-  letter-spacing: 0.5px !important;
-}
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body, input, button, table, th, td { font-family: 'Inter', sans-serif !important; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   height: 100%;
-  background: url("https://images.unsplash.com/photo-1534447677768-be436bb09401") no-repeat center center fixed;
-  background-size: cover;
+  background: #050505;
   color: var(--text);
 }
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.85);
-  z-index: 0;
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events: none;
+  z-index: 9999;
 }
-.video-wrap {
+
+#bg-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+.screen { position: fixed; inset: 0; display: none; z-index: 1; padding: 20px; overflow-y: auto; }
+.screen.active { display: flex; flex-direction: column; }
+
+/* ─── LOGIN SCREEN ─── */
+#screen-login {
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.login-card {
+  background: rgba(8, 8, 8, 0.97);
+  border: 1px solid rgba(250, 204, 21, 0.25);
+  padding: 40px;
+  width: 100%;
+  max-width: 420px;
   position: relative;
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
 }
 
-.bat-overlay {
+.login-card::before {
+  content: '';
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 80px;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.7;
 }
 
-  /* ─── SCANLINE OVERLAY ─── */
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
-    pointer-events: none;
-    z-index: 9999;
-  }
+.login-brand {
+  text-align: center;
+  margin-bottom: 32px;
+}
 
-  /* ─── STAR BACKGROUND ─── */
-  #bg-canvas {
-    position: fixed; inset: 0;
-    pointer-events: none;
-    z-index: 0;
-  }
+.bat-logo-svg {
+  width: 56px;
+  height: 36px;
+  margin: 0 auto 14px;
+  display: block;
+  filter: drop-shadow(0 0 12px rgba(250,204,21,0.5));
+}
 
-  /* ─── SCREENS ─── */
-  .screen {
-    position: fixed; inset: 0;
-    display: none;
-    z-index: 1;
-    padding: 20px;
-    overflow-y: auto;
-  }
-  .screen.active { display: flex; flex-direction: column; }
+.login-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 6px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
 
-  /* ─── HEADER ─── */
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 0 20px 0;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
- .logo {
+.login-sub {
+  font-size: 0.6rem;
+  letter-spacing: 3px;
+  color: rgba(250,204,21,0.35);
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+
+.login-divider {
+  height: 1px;
+  background: rgba(250,204,21,0.1);
+  margin: 0 0 24px;
+}
+
+.tenant-hint {
+  background: rgba(250,204,21,0.04);
+  border: 1px solid rgba(250,204,21,0.12);
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  font-size: 0.68rem;
+  color: rgba(250,204,21,0.5);
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tenant-hint::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+
+/* ─── HEADER ─── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 20px 0;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.logo {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--head);
-  font-weight: 800;
-  font-size: 1.5rem;
+  font-weight: 700;
+  font-size: 1.3rem;
   letter-spacing: 3px;
   color: var(--accent);
 }
 
-.logo img {
-  width: 40px;
-  filter: drop-shadow(0 0 8px rgba(250,204,21,0.6));
-}
-.logo span {
-  color: var(--accent);
-  font-weight: 300;
-  letter-spacing: 2px;
-}
+.logo svg { width: 32px; height: 20px; filter: drop-shadow(0 0 6px rgba(250,204,21,0.5)); }
 
 .header-sub {
-  font-family: var(--body);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   color: var(--accent-dim);
   letter-spacing: 3px;
   text-transform: uppercase;
 }
-  /* ─── NAV TABS ─── */
-  .nav-tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 20px;
-    flex-shrink: 0;
-  }
-  .nav-tab {
-    font-family: var(--body);
-    font-size: 0.72rem;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    padding: 8px 18px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    cursor: pointer;
-    transition: all 0.2s;
-    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
-  }
-  .nav-tab:hover, .nav-tab.active {
-    background: rgba(0, 200, 255, 0.1);
-    border-color: var(--accent);
-    color: var(--accent);
-    box-shadow: var(--glow-accent);
-  }
 
-  /* ─── PANELS ─── */
-  .panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(20px);
-    padding: 20px;
-    position: relative;
-    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
-  }
-  .panel::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    opacity: 0.5;
-  }
-  .panel-title {
-    font-family: var(--body);
-    font-size: 0.65rem;
-    letter-spacing: 3px;
-    color: var(--accent);
-    text-transform: uppercase;
-    margin-bottom: 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .panel-title::before {
-    content: '';
-    width: 6px; height: 6px;
-    background: var(--accent);
-    box-shadow: var(--glow-accent);
-    display: inline-block;
-  }
+/* ─── NAV TABS ─── */
+.nav-tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-shrink: 0; }
+.nav-tab {
+  font-size: 0.72rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 8px 18px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+.nav-tab:hover, .nav-tab.active {
+  background: rgba(250,204,21,0.08);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: var(--glow-accent);
+}
 
-  /* ─── BUTTONS ─── */
- .btn {
-  font-family: var(--body);
+/* ─── PANELS ─── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  padding: 20px;
+  position: relative;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.5;
+}
+.panel-title {
+  font-size: 0.65rem;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel-title::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--accent);
+  box-shadow: var(--glow-accent);
+  display: inline-block;
+}
+
+/* ─── BUTTONS ─── */
+.btn {
   font-size: 0.75rem;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   padding: 12px 24px;
-
   background: transparent;
   border: 1px solid var(--accent);
   color: var(--accent);
-
   cursor: pointer;
   transition: all 0.25s ease;
-
   clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
   position: relative;
   overflow: hidden;
 }
+.btn:hover { background: var(--accent); color: black; box-shadow: var(--glow-accent); transform: translateY(-2px); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn.danger { border-color: var(--red); color: var(--red); }
+.btn.danger:hover { background: var(--red); color: black; box-shadow: var(--glow-red); }
+.btn.success { border-color: var(--green); color: var(--green); }
+.btn.success:hover { background: var(--green); color: black; }
+.btn.large { padding: 16px 36px; font-size: 0.85rem; }
 
-/* subtle yellow scan glow */
-.btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(250,204,21,0.15), transparent);
-  opacity: 0;
-  transition: opacity 0.25s;
-}
-
-/* hover glow */
-.btn:hover::before {
-  opacity: 1;
-}
-
-/* main hover effect */
-.btn:hover {
-  background: var(--accent);
-  color: black;
-  box-shadow: var(--glow-accent);
-  transform: translateY(-2px);
-}
-
-/* disabled */
-.btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-/* danger button */
-.btn.danger {
-  border-color: var(--red);
-  color: var(--red);
-}
-
-.btn.danger:hover {
-  background: var(--red);
-  color: black;
-  box-shadow: var(--glow-red);
-}
-
-/* success button */
-.btn.success {
-  border-color: var(--green);
-  color: var(--green);
-}
-
-.btn.success:hover {
-  background: var(--green);
-  color: black;
-  box-shadow: var(--glow-green);
-}
-
-/* large button */
-.btn.large {
-  padding: 16px 36px;
-  font-size: 0.85rem;
-}
-
-  /* ─── VIDEO ─── */
-  .video-wrap {
-    position: relative;
-    display: inline-block;
-    width: 100%;
-  }
+/* ─── VIDEO ─── */
+.video-wrap { position: relative; display: inline-block; width: 100%; }
 video, canvas.overlay {
   display: block;
   width: 100%;
   border: 1px solid var(--border);
   filter: contrast(1.1) brightness(0.9) saturate(0.7);
 }
-  canvas.overlay {
-    position: absolute;
-    top: 0; left: 0;
-    pointer-events: none;
-  }
+canvas.overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
 
-  /* ─── INPUT ─── */
-  .input-group { margin-bottom: 16px; }
-  .input-group label {
-    display: block;
-    font-family: var(--body);
-    font-size: 0.65rem;
-    letter-spacing: 2px;
-    color: var(--text-dim);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-  }
-  .input-group input {
-    width: 100%;
-    background: rgba(0, 200, 255, 0.04);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: var(--body);
-    font-size: 0.9rem;
-    padding: 10px 14px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  .input-group input:focus { border-color: var(--accent); box-shadow: var(--glow-accent); }
-
-  /* ─── PROGRESS BAR ─── */
-  .progress-bar-wrap {
-    background: rgba(0,0,0,0.4);
-    border: 1px solid var(--border);
-    height: 8px;
-    margin: 8px 0;
-    overflow: hidden;
-  }
-  .progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--green));
-    box-shadow: 0 0 10px var(--accent);
-    transition: width 0.1s;
-    width: 0%;
-  }
-
-  /* ─── STATUS BADGE ─── */
-  .badge {
-    display: inline-block;
-    font-family: var(--body);
-    font-size: 0.7rem;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    padding: 4px 12px;
-    border: 1px solid;
-  }
-  .badge.green { border-color: var(--green); color: var(--green); box-shadow: 0 0 10px rgba(0,255,136,0.2); }
-  .badge.yellow { border-color: var(--yellow); color: var(--yellow); }
-  .badge.red { border-color: var(--red); color: var(--red); animation: flashBadge 0.5s infinite; }
-  .badge.accent { border-color: var(--accent); color: var(--accent); }
-
-  @keyframes flashBadge { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
-
-  /* ─── METRIC ─── */
-  .metric {
-    text-align: center;
-    padding: 14px 10px;
-    background: rgba(0,0,0,0.3);
-    border: 1px solid var(--border);
-  }
-  .metric-val {
-    font-family: var(--body);
-    font-size: 1.6rem;
-    font-weight: 400;
-    color: var(--accent);
-    line-height: 1;
-    margin-bottom: 4px;
-  }
-  .metric-label {
-    font-size: 0.6rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--text-dim);
-  }
-
-  /* ─── GRID HELPERS ─── */
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  .flex-row { display: flex; gap: 14px; align-items: flex-start; }
-  .flex-col { display: flex; flex-direction: column; gap: 14px; }
-  .flex-1 { flex: 1; }
-
-  /* ─── TABLE ─── */
-  .data-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: var(--body);
-    font-size: 0.75rem;
-  }
-  .data-table th {
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--accent);
-    font-size: 0.62rem;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border-bright);
-    text-align: left;
-  }
-  .data-table td {
-    padding: 9px 12px;
-    border-bottom: 1px solid var(--border);
-    color: var(--text);
-  }
-  .data-table tr:hover td { background: rgba(0,200,255,0.04); }
-
-  /* ─── FATIGUE STATUS ─── */
-  #fatigue-status-box {
-    text-align: center;
-    padding: 20px;
-    border: 2px solid var(--green);
-    background: rgba(0, 255, 136, 0.05);
-    transition: all 0.5s;
-    position: relative;
-    overflow: hidden;
-  }
-  #fatigue-status-box.warning {
-    border-color: var(--yellow);
-    background: rgba(255, 204, 0, 0.06);
-  }
-  #fatigue-status-box.critical {
-    border-color: var(--red);
-    background: rgba(255, 34, 68, 0.08);
-    animation: criticalPulse 0.8s infinite;
-  }
-  @keyframes criticalPulse {
-    0%,100% { box-shadow: 0 0 20px rgba(255,34,68,0.3); }
-    50% { box-shadow: 0 0 50px rgba(255,34,68,0.7); }
-  }
-  #fatigue-label {
-    font-family: var(--head);
-    font-size: 1.4rem;
-    font-weight: 800;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-  }
-
-  /* ─── ALERT OVERLAY ─── */
-  #alert-overlay {
-    position: fixed; inset: 0;
-    background: rgba(255, 0, 30, 0.12);
-    display: none;
-    z-index: 8888;
-    pointer-events: none;
-    animation: alertFlash 0.5s infinite;
-  }
-  @keyframes alertFlash { 0%,100% { opacity:0; } 50% { opacity:1; } }
-  #alert-banner {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(10, 0, 5, 0.95);
-    border: 2px solid var(--red);
-    padding: 30px 60px;
-    z-index: 9000;
-    display: none;
-    text-align: center;
-    box-shadow: 0 0 60px rgba(255,0,30,0.5);
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
-  }
-  #alert-banner h1 {
-    font-family: var(--head);
-    font-size: 2rem;
-    font-weight: 800;
-    letter-spacing: 5px;
-    color: var(--red);
-    text-shadow: 0 0 30px var(--red);
-    animation: alertFlash 0.5s infinite;
-  }
-  #alert-banner p {
-    font-family: var(--body);
-    font-size: 0.8rem;
-    color: var(--text-dim);
-    margin-top: 8px;
-    letter-spacing: 2px;
-  }
-
-  /* ─── RECOGNITION RESULT ─── */
-  #recog-result {
-    font-family: var(--head);
-    font-size: 1.5rem;
-    font-weight: 600;
-    letter-spacing: 3px;
-    margin: 12px 0 6px;
-    min-height: 2rem;
-    text-align: center;
-  }
-  #recog-confidence {
-    font-family: var(--body);
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-    text-align: center;
-  }
-
-  /* ─── SOUND TOGGLE ─── */
-  #sound-toggle {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-  }
-
-  /* ─── SCROLLBAR ─── */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border-bright); }
-
-  /* ─── MODEL STATUS ─── */
-  #model-status {
-    font-family: var(--body);
-    font-size: 0.7rem;
-    color: var(--yellow);
-    letter-spacing: 2px;
-    padding: 8px 0;
-  }
-
-  /* ─── STATUS DOT ─── */
-  .dot {
-    display: inline-block;
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--green);
-    box-shadow: 0 0 8px var(--green);
-    margin-right: 6px;
-    animation: pulse 2s infinite;
-  }
-  .dot.off { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
-  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-
-  /* ─── AUTHENTICATED INFO ─── */
-  #authed-info {
-    font-family: var(--body);
-    font-size: 0.75rem;
-    color: var(--green);
-    letter-spacing: 2px;
-    margin-bottom: 14px;
-    display: none;
-    padding: 10px;
-    border: 1px solid rgba(0,255,136,0.2);
-    background: rgba(0,255,136,0.05);
-  }
-
-  /* ─── MINI LOG ─── */
-  #mini-log {
-    font-family: var(--body);
-    font-size: 0.65rem;
-    color: var(--text-dim);
-    max-height: 80px;
-    overflow-y: auto;
-    padding: 6px;
-    background: rgba(0,0,0,0.3);
-    border: 1px solid var(--border);
-  }
-  .log-line { margin-bottom: 2px; }
-  .log-line span { color: var(--accent); }
-
-  .separator { width: 100%; height: 1px; background: var(--border); margin: 6px 0; }
-  .text-sm { font-size: 0.75rem; color: var(--text-dim); font-family: var(--body); letter-spacing: 1px; }
-  .mt-8 { margin-top: 8px; }
-  .mt-14 { margin-top: 14px; }
-
-  /* ─── EAR BAR ─── */
-  .ear-bar-wrap {
-    background: rgba(0,0,0,0.4);
-    border: 1px solid var(--border);
-    height: 6px;
-    margin-top: 4px;
-    overflow: hidden;
-  }
-  .ear-bar-fill {
-    height: 100%;
-    background: var(--green);
-    transition: width 0.1s, background 0.3s;
-  }
-
-  /* ─── SCREEN SPECIFIC LAYOUTS ─── */
-  #screen-register .content,
-  #screen-auth .content {
-    display: flex;
-    gap: 20px;
-    flex: 1;
-    min-height: 0;
-  }
-  #screen-register .left-col,
-  #screen-auth .left-col {
-    width: 320px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  #screen-register .right-col,
-  #screen-auth .right-col {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  #screen-monitor .content {
-    display: flex;
-    gap: 14px;
-    flex: 1;
-    min-height: 0;
-  }
-  #screen-monitor .left-col { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
-  #screen-monitor .right-col { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-  #screen-monitor .center-col { flex: 1.4; display: flex; flex-direction: column; gap: 10px; }
-
-  /* ─── LOGS SCREEN ─── */
-  #logs-wrap { flex: 1; overflow-y: auto; }
-
-  /* ─── SCAN LINE ANIM ─── */
-  .scan-wrap { position: relative; overflow: hidden; }
-  .scan-wrap::after {
-    content: '';
-    position: absolute;
-    top: -100%;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    animation: scanLine 3s linear infinite;
-    opacity: 0.5;
-  }
-  @keyframes scanLine { to { top: 110%; } }
-
-  .spacer { flex: 1; }
-
-  /* ─── REGISTERED USERS PILLS ─── */
-  .user-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    background: rgba(0,200,255,0.07);
-    border: 1px solid var(--border);
-    font-family: var(--body);
-    font-size: 0.7rem;
-    color: var(--text-dim);
-    margin: 3px;
-  }
-  .user-pill span { color: var(--accent); }
-
-  #face-mesh-info {
-    font-family: var(--body);
-    font-size: 0.6rem;
-    color: var(--text-dim);
-    letter-spacing: 1px;
-    margin-top: 6px;
-  }
-  .video-wrap::after {
-  content: "";
-  position: absolute;
-  top: -100%;
-  left: 0;
+/* ─── INPUT ─── */
+.input-group { margin-bottom: 16px; }
+.input-group label {
+  display: block;
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.input-group input {
   width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  animation: scanMove 3s linear infinite;
+  background: rgba(250,204,21,0.04);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input-group input:focus { border-color: var(--accent); box-shadow: var(--glow-accent); }
+
+/* ─── PROGRESS BAR ─── */
+.progress-bar-wrap {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  height: 8px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  box-shadow: 0 0 10px var(--accent);
+  transition: width 0.1s;
+  width: 0%;
 }
 
-@keyframes scanMove {
-  to { top: 110%; }
+/* ─── BADGE ─── */
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border: 1px solid;
 }
+.badge.green { border-color: var(--green); color: var(--green); box-shadow: 0 0 10px rgba(0,255,136,0.2); }
+.badge.yellow { border-color: var(--yellow); color: var(--yellow); }
+.badge.red { border-color: var(--red); color: var(--red); animation: flashBadge 0.5s infinite; }
+.badge.accent { border-color: var(--accent); color: var(--accent); }
+@keyframes flashBadge { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+/* ─── METRIC ─── */
+.metric { text-align: center; padding: 14px 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); }
+.metric-val { font-size: 1.6rem; font-weight: 400; color: var(--accent); line-height: 1; margin-bottom: 4px; }
+.metric-label { font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); }
+
+/* ─── GRID ─── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.flex-row { display: flex; gap: 14px; align-items: flex-start; }
+.flex-col { display: flex; flex-direction: column; gap: 14px; }
+.flex-1 { flex: 1; }
+
+/* ─── TABLE ─── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.data-table th { text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); font-size: 0.62rem; padding: 8px 12px; border-bottom: 1px solid var(--border-bright); text-align: left; }
+.data-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+.data-table tr:hover td { background: rgba(250,204,21,0.03); }
+
+/* ─── FATIGUE STATUS ─── */
+#fatigue-status-box {
+  text-align: center;
+  padding: 20px;
+  border: 2px solid var(--green);
+  background: rgba(34, 197, 94, 0.05);
+  transition: all 0.5s;
+  position: relative;
+  overflow: hidden;
+}
+#fatigue-status-box.warning { border-color: var(--yellow); background: rgba(255,204,0,0.06); }
+#fatigue-status-box.critical { border-color: var(--red); background: rgba(255,34,68,0.08); animation: criticalPulse 0.8s infinite; }
+@keyframes criticalPulse {
+  0%,100% { box-shadow: 0 0 20px rgba(255,34,68,0.3); }
+  50% { box-shadow: 0 0 50px rgba(255,34,68,0.7); }
+}
+#fatigue-label { font-size: 1.4rem; font-weight: 800; letter-spacing: 4px; text-transform: uppercase; }
+
+/* ─── ALERT ─── */
+#alert-overlay { position: fixed; inset: 0; background: rgba(255,0,30,0.12); display: none; z-index: 8888; pointer-events: none; animation: alertFlash 0.5s infinite; }
+@keyframes alertFlash { 0%,100% { opacity:0; } 50% { opacity:1; } }
+#alert-banner {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(10,0,5,0.97);
+  border: 2px solid var(--red);
+  padding: 30px 60px;
+  z-index: 9000;
+  display: none;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(255,0,30,0.5);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+#alert-banner h1 { font-size: 2rem; font-weight: 800; letter-spacing: 5px; color: var(--red); text-shadow: 0 0 30px var(--red); animation: alertFlash 0.5s infinite; }
+#alert-banner p { font-size: 0.8rem; color: var(--text-dim); margin-top: 8px; letter-spacing: 2px; }
+
+/* ─── RECOGNITION ─── */
+#recog-result { font-size: 1.5rem; font-weight: 600; letter-spacing: 3px; margin: 12px 0 6px; min-height: 2rem; text-align: center; }
+#recog-confidence { font-size: 0.75rem; color: var(--text-dim); letter-spacing: 2px; text-align: center; }
+
+/* ─── MISC ─── */
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); margin-right: 6px; animation: pulse 2s infinite; }
+.dot.off { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+#authed-info { font-size: 0.75rem; color: var(--green); letter-spacing: 2px; margin-bottom: 14px; display: none; padding: 10px; border: 1px solid rgba(34,197,94,0.2); background: rgba(34,197,94,0.05); }
+
+#mini-log { font-size: 0.65rem; color: var(--text-dim); max-height: 80px; overflow-y: auto; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); }
+.log-line { margin-bottom: 2px; }
+.log-line span { color: var(--accent); }
+
+.separator { width: 100%; height: 1px; background: var(--border); margin: 6px 0; }
+.text-sm { font-size: 0.75rem; color: var(--text-dim); letter-spacing: 1px; }
+.mt-8 { margin-top: 8px; }
+.mt-14 { margin-top: 14px; }
+
+.ear-bar-wrap { background: rgba(0,0,0,0.4); border: 1px solid var(--border); height: 6px; margin-top: 4px; overflow: hidden; }
+.ear-bar-fill { height: 100%; background: var(--green); transition: width 0.1s, background 0.3s; }
+
+#screen-register .content, #screen-auth .content { display: flex; gap: 20px; flex: 1; min-height: 0; }
+#screen-register .left-col, #screen-auth .left-col { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
+#screen-register .right-col, #screen-auth .right-col { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+
+#screen-monitor .content { display: flex; gap: 14px; flex: 1; min-height: 0; }
+#screen-monitor .left-col { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
+#screen-monitor .right-col { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+#screen-monitor .center-col { flex: 1.4; display: flex; flex-direction: column; gap: 10px; }
+
+.scan-wrap { position: relative; overflow: hidden; }
+.scan-wrap::after { content: ''; position: absolute; top: -100%; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: scanLine 3s linear infinite; opacity: 0.4; }
+@keyframes scanLine { to { top: 110%; } }
+
+.spacer { flex: 1; }
+
+.user-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(250,204,21,0.07); border: 1px solid var(--border); font-size: 0.7rem; color: var(--text-dim); margin: 3px; }
+.user-pill span { color: var(--accent); }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+#model-status { font-size: 0.7rem; color: var(--yellow); letter-spacing: 2px; padding: 8px 0; }
+
+/* ─── SESSION PANEL ─── */
+.session-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: rgba(250,204,21,0.05);
+  border: 1px solid rgba(250,204,21,0.15);
+  margin-bottom: 14px;
+  font-size: 0.68rem;
+  letter-spacing: 1.5px;
+  flex-shrink: 0;
+}
+.session-org { color: var(--accent); font-weight: 600; }
+.session-logout { background: transparent; border: 1px solid rgba(250,204,21,0.3); color: rgba(250,204,21,0.6); font-size: 0.62rem; letter-spacing: 1px; padding: 4px 12px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+.session-logout:hover { border-color: var(--red); color: var(--red); }
 </style>
 </head>
-<body style="display:none;">
+<body>
+
 <canvas id="bg-canvas"></canvas>
-<button onclick="firebaseLogout()" style="position:absolute; top:20px; right:20px;">
-  Logout
-</button>
-<!-- ─── ALERT OVERLAY ─── -->
 <div id="alert-overlay"></div>
 <div id="alert-banner">
-  <h1>⚠ BAT-SIGNAL: DRIVER FATIGUE DETECTED</h1>
+  <h1>⚠ DRIVER FATIGUE DETECTED</h1>
   <p>DRIVER ATTENTION REQUIRED — PULL OVER SAFELY</p>
 </div>
 
 <!-- ═══════════════════════════════════════════
-     SCREEN 0: FIREBASE LOGIN
+     SCREEN 0: LOGIN
+     To add a customer: add one entry to TENANTS object in JS below
 ════════════════════════════════════════════ -->
 <div id="screen-login" class="screen active">
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:20px;position:relative;z-index:2;">
-    <div style="font-family:var(--head);font-weight:800;font-size:2rem;letter-spacing:6px;color:var(--accent);">BATMAN <span style="font-weight:300;">DMS</span></div>
-    <div style="font-family:var(--body);font-size:0.65rem;letter-spacing:3px;color:var(--text-dim);margin-top:-12px;">DRIVER MONITORING INTELLIGENCE · FIREBASE EDITION</div>
-    <div class="panel" style="width:380px;">
-      <div class="panel-title">Admin Authentication</div>
+  <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:0;">
+    <div class="login-card">
+      <div class="login-brand">
+        <svg class="bat-logo-svg" viewBox="0 0 100 60" fill="#facc15" xmlns="http://www.w3.org/2000/svg">
+          <path d="M50 8 C40 8 28 18 18 14 C8 10 1 20 0 30 C8 27 16 32 20 38 C25 44 30 43 35 40 C38 49 42 53 50 53 C58 53 62 49 65 40 C70 43 75 44 80 38 C84 32 92 27 100 30 C99 20 92 10 82 14 C72 18 60 8 50 8Z"/>
+          <path d="M35 40 C37 34 41 31 44 30 C42 25 38 23 34 26Z" opacity="0.55"/>
+          <path d="M65 40 C63 34 59 31 56 30 C58 25 62 23 66 26Z" opacity="0.55"/>
+        </svg>
+        <div class="login-title">SENTINEL DMS</div>
+        <div class="login-sub">Driver Monitoring Intelligence · Secure Portal</div>
+      </div>
+      <div class="login-divider"></div>
+      <div class="tenant-hint">Enter your organization credentials provided by your administrator</div>
       <div class="input-group">
-        <label>Email</label>
-        <input type="email" id="login-email" placeholder="admin@example.com" />
+        <label>Organization ID</label>
+        <input type="text" id="login-org" placeholder="e.g. gotham_logistics" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()" />
       </div>
       <div class="input-group">
         <label>Password</label>
-        <input type="password" id="login-password" placeholder="••••••••" />
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
       </div>
-      <button class="btn large" style="width:100%;" onclick="firebaseLogin()">▶ SIGN IN</button>
-      <div class="separator mt-8"></div>
-      <button class="btn" style="width:100%;margin-top:8px;" onclick="firebaseRegisterAdmin()">CREATE ADMIN ACCOUNT</button>
-      <div id="login-error" style="color:var(--red);font-family:var(--body);font-size:0.7rem;margin-top:10px;display:none;padding:8px;border:1px solid var(--red);background:rgba(239,68,68,0.05);"></div>
-      <div style="font-family:var(--body);font-size:0.6rem;color:var(--text-dim);margin-top:12px;letter-spacing:1px;">
-        First time? Enter your email + password and click CREATE ADMIN ACCOUNT.
-      </div>
+      <button class="btn large" style="width:100%;margin-top:4px;" onclick="doLogin()">▶ ACCESS SYSTEM</button>
+      <div id="login-err" style="display:none;margin-top:12px;padding:10px 14px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.06);color:var(--red);font-size:0.7rem;letter-spacing:1px;"></div>
+      <div style="margin-top:20px;font-size:0.58rem;color:rgba(255,255,255,0.18);letter-spacing:1.5px;text-align:center;text-transform:uppercase;">Each organization has isolated data · Powered by Sentinel DMS</div>
     </div>
   </div>
 </div>
@@ -744,24 +470,24 @@ video, canvas.overlay {
      SCREEN 1: REGISTRATION
 ════════════════════════════════════════════ -->
 <div id="screen-register" class="screen">
+  <div class="session-info-bar">
+    <div><span class="dot"></span><span class="session-org" id="hdr-org">—</span> <span style="color:var(--text-dim);margin-left:8px;">Logged in</span></div>
+    <button class="session-logout" onclick="doLogout()">⏻ Sign Out</button>
+  </div>
   <div class="header">
     <div class="logo">
-<img src="./images/batman.png" class="bat-overlay">
-  <span>BATMAN DMS</span>
-</div>
-    <div class="header-sub">GOTHAM NEEDS YOU · v2.0</div>
-    <div id="sound-toggle" style="position:static;">
-      <button class="btn" id="sound-btn" onclick="toggleSound()">🔊 SOUND ON</button>
+      <svg viewBox="0 0 100 60" fill="#facc15" xmlns="http://www.w3.org/2000/svg"><path d="M50 8 C40 8 28 18 18 14 C8 10 1 20 0 30 C8 27 16 32 20 38 C25 44 30 43 35 40 C38 49 42 53 50 53 C58 53 62 49 65 40 C70 43 75 44 80 38 C84 32 92 27 100 30 C99 20 92 10 82 14 C72 18 60 8 50 8Z"/></svg>
+      SENTINEL DMS
     </div>
+    <div class="header-sub">Driver Registration Module</div>
+    <button class="btn" id="sound-btn" onclick="toggleSound()">🔊 Sound On</button>
   </div>
-
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showScreen('register')">01 / REGISTER</button>
-    <button class="nav-tab" onclick="showScreen('auth')">02 / AUTHENTICATE</button>
-    <button class="nav-tab" onclick="showScreen('monitor')">03 / MONITOR</button>
-    <button class="nav-tab" onclick="showScreen('logs')">04 / ENTRY LOG</button>
+    <button class="nav-tab active" onclick="showScreen('register')">01 / Register</button>
+    <button class="nav-tab" onclick="showScreen('auth')">02 / Authenticate</button>
+    <button class="nav-tab" onclick="showScreen('monitor')">03 / Monitor</button>
+    <button class="nav-tab" onclick="showScreen('logs')">04 / Entry Log</button>
   </div>
-
   <div class="content">
     <div class="left-col">
       <div class="panel">
@@ -770,42 +496,36 @@ video, canvas.overlay {
           <label>Full Name</label>
           <input type="text" id="reg-name" placeholder="Enter driver name" />
         </div>
-        <button class="btn large" id="start-reg-btn" onclick="startRegistration()">▶ START REGISTRATION</button>
+        <button class="btn large" id="start-reg-btn" onclick="startRegistration()">▶ Start Registration</button>
         <div class="separator mt-8"></div>
-        <div id="model-status">● LOADING MODELS...</div>
+        <div id="model-status">● Loading models...</div>
         <div class="mt-8">
           <div class="text-sm" id="capture-status">Ready to capture</div>
           <div class="progress-bar-wrap mt-8">
             <div class="progress-bar-fill" id="capture-progress"></div>
           </div>
-          <div class="text-sm" id="capture-count" style="margin-top:4px;">0 / 100 samples</div>
+          <div class="text-sm" id="capture-count" style="margin-top:4px;">0 / 80 samples</div>
         </div>
       </div>
-
       <div class="panel">
         <div class="panel-title">Registered Drivers</div>
         <div id="reg-users-list"><span class="text-sm">No drivers registered.</span></div>
         <div class="separator mt-8"></div>
-        <button class="btn danger" style="width:100%;margin-top:8px;" onclick="clearAllData()">⚠ CLEAR ALL DATA</button>
+        <button class="btn danger" style="width:100%;margin-top:8px;" onclick="clearAllData()">⚠ Clear All Data</button>
       </div>
-
       <div class="panel">
         <div class="panel-title">System Log</div>
         <div id="mini-log"></div>
       </div>
     </div>
-
     <div class="right-col">
       <div class="panel scan-wrap" style="flex:1;">
-        <div class="panel-title">BATCOM // LIVE SURVEILLANCE</div>
-        <div class="video-wrap" id="reg-video-wrap">
+        <div class="panel-title">Live Camera Feed</div>
+        <div class="video-wrap">
           <video id="reg-video" autoplay muted playsinline></video>
           <canvas id="reg-canvas" class="overlay"></canvas>
-          <img src="./images/batman.png" class="bat-overlay">
         </div>
-        <div id="face-mesh-info">
-  ◈ TARGET LOCK SYSTEM ACTIVE · MAINTAIN VISUAL ALIGNMENT
-</div>
+        <div style="font-size:0.6rem;color:var(--text-dim);margin-top:6px;letter-spacing:1px;">◈ Face detection active · Keep face centered and well-lit</div>
       </div>
     </div>
   </div>
@@ -815,44 +535,44 @@ video, canvas.overlay {
      SCREEN 2: AUTHENTICATION
 ════════════════════════════════════════════ -->
 <div id="screen-auth" class="screen">
+  <div class="session-info-bar">
+    <div><span class="dot"></span><span class="session-org" id="hdr-org2">—</span></div>
+    <button class="session-logout" onclick="doLogout()">⏻ Sign Out</button>
+  </div>
   <div class="header">
     <div class="logo">
-<img src="./images/batman.png" class="bat-overlay">
-  <span>BATMAN DMS</span>
-</div>
-    <div class="header-sub">AUTHENTICATION MODULE</div>
+      <svg viewBox="0 0 100 60" fill="#facc15" xmlns="http://www.w3.org/2000/svg"><path d="M50 8 C40 8 28 18 18 14 C8 10 1 20 0 30 C8 27 16 32 20 38 C25 44 30 43 35 40 C38 49 42 53 50 53 C58 53 62 49 65 40 C70 43 75 44 80 38 C84 32 92 27 100 30 C99 20 92 10 82 14 C72 18 60 8 50 8Z"/></svg>
+      SENTINEL DMS
+    </div>
+    <div class="header-sub">Authentication Module</div>
   </div>
   <div class="nav-tabs">
-    <button class="nav-tab" onclick="showScreen('register')">01 / REGISTER</button>
-    <button class="nav-tab active" onclick="showScreen('auth')">02 / AUTHENTICATE</button>
-    <button class="nav-tab" onclick="showScreen('monitor')">03 / MONITOR</button>
-    <button class="nav-tab" onclick="showScreen('logs')">04 / ENTRY LOG</button>
+    <button class="nav-tab" onclick="showScreen('register')">01 / Register</button>
+    <button class="nav-tab active" onclick="showScreen('auth')">02 / Authenticate</button>
+    <button class="nav-tab" onclick="showScreen('monitor')">03 / Monitor</button>
+    <button class="nav-tab" onclick="showScreen('logs')">04 / Entry Log</button>
   </div>
-
   <div class="content">
     <div class="left-col">
       <div class="panel">
         <div class="panel-title">Recognition Status</div>
         <div id="recog-result">—</div>
-        <div id="recog-confidence">CONFIDENCE: —</div>
+        <div id="recog-confidence">Confidence: —</div>
         <div class="separator mt-8"></div>
-        <div id="authed-info">✓ AUTHENTICATED · ENTRY LOGGED</div>
-        <button class="btn success" style="width:100%;margin-top:8px;" id="go-monitor-btn" onclick="showScreen('monitor')" disabled>▶ START MONITORING</button>
+        <div id="authed-info">✓ Authenticated · Entry Logged</div>
+        <button class="btn success" style="width:100%;margin-top:8px;" id="go-monitor-btn" onclick="showScreen('monitor')" disabled>▶ Start Monitoring</button>
       </div>
-
       <div class="panel">
         <div class="panel-title">Auth Controls</div>
-        <button class="btn" style="width:100%;" id="start-auth-btn" onclick="startAuth()">SCAN FACE</button>
+        <button class="btn" style="width:100%;" onclick="startAuth()">Scan Face</button>
         <div class="separator mt-8"></div>
         <div class="text-sm mt-8">Look directly at camera. Keep face centered and well-lit.</div>
       </div>
-
       <div class="panel">
         <div class="panel-title">Recent Entries</div>
         <div id="recent-entries"><span class="text-sm">No entries yet.</span></div>
       </div>
     </div>
-
     <div class="right-col">
       <div class="panel scan-wrap" style="flex:1;">
         <div class="panel-title">Identity Verification</div>
@@ -866,26 +586,28 @@ video, canvas.overlay {
 </div>
 
 <!-- ═══════════════════════════════════════════
-     SCREEN 3: MONITORING DASHBOARD
+     SCREEN 3: MONITORING
 ════════════════════════════════════════════ -->
 <div id="screen-monitor" class="screen">
+  <div class="session-info-bar">
+    <div><span class="dot"></span><span class="session-org" id="hdr-org3">—</span></div>
+    <button class="session-logout" onclick="doLogout()">⏻ Sign Out</button>
+  </div>
   <div class="header">
     <div class="logo">
-<img src="./images/batman.png" class="bat-overlay">
-  <span>BATMAN DMS</span>
-</div>
-    <div class="header-sub" id="monitor-driver-label">DRIVER: UNKNOWN</div>
-    <div style="font-family:var(--body);font-size:0.7rem;color:var(--text-dim)" id="monitor-clock"></div>
+      <svg viewBox="0 0 100 60" fill="#facc15" xmlns="http://www.w3.org/2000/svg"><path d="M50 8 C40 8 28 18 18 14 C8 10 1 20 0 30 C8 27 16 32 20 38 C25 44 30 43 35 40 C38 49 42 53 50 53 C58 53 62 49 65 40 C70 43 75 44 80 38 C84 32 92 27 100 30 C99 20 92 10 82 14 C72 18 60 8 50 8Z"/></svg>
+      SENTINEL DMS
+    </div>
+    <div class="header-sub" id="monitor-driver-label">Driver: Unknown</div>
+    <div style="font-size:0.7rem;color:var(--text-dim)" id="monitor-clock"></div>
   </div>
   <div class="nav-tabs">
-    <button class="nav-tab" onclick="showScreen('register')">01 / REGISTER</button>
-    <button class="nav-tab" onclick="showScreen('auth')">02 / AUTHENTICATE</button>
-    <button class="nav-tab active" onclick="showScreen('monitor')">03 / MONITOR</button>
-    <button class="nav-tab" onclick="showScreen('logs')">04 / ENTRY LOG</button>
+    <button class="nav-tab" onclick="showScreen('register')">01 / Register</button>
+    <button class="nav-tab" onclick="showScreen('auth')">02 / Authenticate</button>
+    <button class="nav-tab active" onclick="showScreen('monitor')">03 / Monitor</button>
+    <button class="nav-tab" onclick="showScreen('logs')">04 / Entry Log</button>
   </div>
-
   <div class="content">
-    <!-- LEFT: METRICS -->
     <div class="left-col">
       <div class="panel">
         <div class="panel-title">Fatigue Status</div>
@@ -894,71 +616,49 @@ video, canvas.overlay {
           <div class="text-sm mt-8" id="fatigue-sub">All parameters nominal</div>
         </div>
       </div>
-
       <div class="panel">
         <div class="panel-title">Live Metrics</div>
         <div style="margin-bottom:10px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-            <span class="text-sm">EAR (LEFT)</span>
-            <span class="text-sm" id="ear-l-val">0.00</span>
+            <span class="text-sm">EAR (Left)</span><span class="text-sm" id="ear-l-val">0.00</span>
           </div>
           <div class="ear-bar-wrap"><div class="ear-bar-fill" id="ear-l-bar" style="width:60%"></div></div>
         </div>
         <div style="margin-bottom:10px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-            <span class="text-sm">EAR (RIGHT)</span>
-            <span class="text-sm" id="ear-r-val">0.00</span>
+            <span class="text-sm">EAR (Right)</span><span class="text-sm" id="ear-r-val">0.00</span>
           </div>
           <div class="ear-bar-wrap"><div class="ear-bar-fill" id="ear-r-bar" style="width:60%"></div></div>
         </div>
         <div class="separator"></div>
         <div class="grid-2" style="margin-top:8px;">
-          <div class="metric">
-            <div class="metric-val" id="m-eye">OPEN</div>
-            <div class="metric-label">Eye State</div>
-          </div>
-          <div class="metric">
-            <div class="metric-val" id="m-mouth">NORMAL</div>
-            <div class="metric-label">Mouth</div>
-          </div>
-          <div class="metric">
-            <div class="metric-val" id="m-tilt">0°</div>
-            <div class="metric-label">Head Tilt</div>
-          </div>
-          <div class="metric">
-            <div class="metric-val" id="m-blinks">0</div>
-            <div class="metric-label">Blink Count</div>
-          </div>
+          <div class="metric"><div class="metric-val" id="m-eye">OPEN</div><div class="metric-label">Eye State</div></div>
+          <div class="metric"><div class="metric-val" id="m-mouth">NORMAL</div><div class="metric-label">Mouth</div></div>
+          <div class="metric"><div class="metric-val" id="m-tilt">0°</div><div class="metric-label">Head Tilt</div></div>
+          <div class="metric"><div class="metric-val" id="m-blinks">0</div><div class="metric-label">Blink Count</div></div>
         </div>
       </div>
-
       <div class="panel">
         <div class="panel-title">Alert Controls</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <div class="badge" id="badge-eye">EYE: OPEN</div>
-          <div class="badge" id="badge-mouth">MOUTH: OK</div>
-          <div class="badge" id="badge-tilt">TILT: OK</div>
+          <div class="badge" id="badge-eye">Eye: Open</div>
+          <div class="badge" id="badge-mouth">Mouth: OK</div>
+          <div class="badge" id="badge-tilt">Tilt: OK</div>
         </div>
         <div class="separator mt-8"></div>
-        <button class="btn" style="width:100%;margin-top:4px;" onclick="toggleSound()" id="sound-toggle2">🔊 SOUND ON</button>
-        <button class="btn danger" style="width:100%;margin-top:8px;" onclick="dismissAlert()">DISMISS ALERT</button>
+        <button class="btn" style="width:100%;margin-top:4px;" onclick="toggleSound()" id="sound-toggle2">🔊 Sound On</button>
+        <button class="btn danger" style="width:100%;margin-top:8px;" onclick="dismissAlert()">Dismiss Alert</button>
       </div>
     </div>
-
-    <!-- CENTER: VIDEO -->
     <div class="center-col">
       <div class="panel scan-wrap" style="flex:1;">
-        <div class="panel-title">
-          <span class="dot" id="cam-dot"></span>REAL-TIME FACIAL ANALYSIS
-        </div>
-        <div class="video-wrap" id="monitor-video-wrap">
+        <div class="panel-title"><span class="dot" id="cam-dot"></span>Real-Time Facial Analysis</div>
+        <div class="video-wrap">
           <video id="monitor-video" autoplay muted playsinline></video>
           <canvas id="monitor-canvas" class="overlay"></canvas>
         </div>
       </div>
     </div>
-
-    <!-- RIGHT: CHARTS + EVENTS -->
     <div class="left-col" style="width:220px;">
       <div class="panel">
         <div class="panel-title">Session Stats</div>
@@ -968,7 +668,7 @@ video, canvas.overlay {
       </div>
       <div class="panel" style="flex:1;overflow:hidden;">
         <div class="panel-title">Event Log</div>
-        <div id="event-log" style="font-family:var(--body);font-size:0.62rem;color:var(--text-dim);overflow-y:auto;max-height:200px;"></div>
+        <div id="event-log" style="font-size:0.62rem;color:var(--text-dim);overflow-y:auto;max-height:200px;"></div>
       </div>
     </div>
   </div>
@@ -978,38 +678,39 @@ video, canvas.overlay {
      SCREEN 4: ENTRY LOGS
 ════════════════════════════════════════════ -->
 <div id="screen-logs" class="screen">
+  <div class="session-info-bar">
+    <div><span class="dot"></span><span class="session-org" id="hdr-org4">—</span></div>
+    <button class="session-logout" onclick="doLogout()">⏻ Sign Out</button>
+  </div>
   <div class="header">
     <div class="logo">
-  <img src="./images/batman.png" class="bat-overlay">
-  <span>BATMAN DMS</span>
-</div>
-    <div class="header-sub">ENTRY LOG REGISTER</div>
+      <svg viewBox="0 0 100 60" fill="#facc15" xmlns="http://www.w3.org/2000/svg"><path d="M50 8 C40 8 28 18 18 14 C8 10 1 20 0 30 C8 27 16 32 20 38 C25 44 30 43 35 40 C38 49 42 53 50 53 C58 53 62 49 65 40 C70 43 75 44 80 38 C84 32 92 27 100 30 C99 20 92 10 82 14 C72 18 60 8 50 8Z"/></svg>
+      SENTINEL DMS
+    </div>
+    <div class="header-sub">Entry Log Register</div>
   </div>
   <div class="nav-tabs">
-    <button class="nav-tab" onclick="showScreen('register')">01 / REGISTER</button>
-    <button class="nav-tab" onclick="showScreen('auth')">02 / AUTHENTICATE</button>
-    <button class="nav-tab" onclick="showScreen('monitor')">03 / MONITOR</button>
-    <button class="nav-tab active" onclick="showScreen('logs')">04 / ENTRY LOG</button>
+    <button class="nav-tab" onclick="showScreen('register')">01 / Register</button>
+    <button class="nav-tab" onclick="showScreen('auth')">02 / Authenticate</button>
+    <button class="nav-tab" onclick="showScreen('monitor')">03 / Monitor</button>
+    <button class="nav-tab active" onclick="showScreen('logs')">04 / Entry Log</button>
   </div>
   <div style="display:flex;gap:14px;margin-bottom:14px;flex-shrink:0;">
-    <button class="btn" onclick="refreshLogs()">↺ REFRESH</button>
-    <button class="btn danger" onclick="clearLogs()">CLEAR LOGS</button>
+    <button class="btn" onclick="refreshLogs()">↺ Refresh</button>
+    <button class="btn danger" onclick="clearLogs()">Clear Logs</button>
     <div class="spacer"></div>
     <div class="text-sm" style="align-self:center;" id="log-count">0 entries</div>
   </div>
-  <div class="panel" id="logs-wrap" style="flex:1;overflow:auto;">
+  <div class="panel" style="flex:1;overflow:auto;">
     <table class="data-table" style="width:100%;">
       <thead>
         <tr>
-          <th>#</th>
-          <th>Driver Name</th>
-          <th>Entry Time</th>
-          <th>Date</th>
-          <th>Status</th>
-          <th>Confidence</th>
+          <th>#</th><th>Driver Name</th><th>Entry Time</th><th>Date</th><th>Status</th><th>Confidence</th>
         </tr>
       </thead>
-      <tbody id="logs-tbody"><tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">No entries logged yet.</td></tr></tbody>
+      <tbody id="logs-tbody">
+        <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">No entries logged yet.</td></tr>
+      </tbody>
     </table>
   </div>
 </div>
@@ -1017,22 +718,114 @@ video, canvas.overlay {
 <!-- ═══════════════════════════════════════════
      JAVASCRIPT
 ════════════════════════════════════════════ -->
-<script defer>
-/*
- * SENTINEL — Driver Monitoring System
- * "Our system first authenticates the driver using facial recognition,
- *  logs their entry like a smart attendance system, and then continuously
- *  monitors drowsiness in real time using facial landmarks and intelligent
- *  thresholds to prevent false alerts."
- */
+<script>
 
-// ─── CONFIG ───────────────────────────────
+// ════════════════════════════════════════════
+//  TENANT CONFIGURATION
+//  ─────────────────────────────────────────
+//  To add a new customer:
+//    1. Add a new entry below with a unique org ID (no spaces)
+//    2. Set their password
+//    3. Set a display label for their business name
+//    4. Each org gets completely separate data automatically
+//
+//  Their drivers + logs are stored under:
+//    localStorage["sentinel_<orgId>_drivers"]
+//    localStorage["sentinel_<orgId>_logs"]
+//
+//  To sell to a new business, just add one line here and give them
+//  the org ID + password. Their data is isolated from all others.
+// ════════════════════════════════════════════
+
+const TENANTS = {
+  // FORMAT: "org_id": { password: "their_password", label: "Business Display Name" }
+  "admin":            { password: "sentinel2025",   label: "Sentinel Admin" },
+  "gotham_logistics": { password: "bat2025",         label: "Gotham Logistics Co." },
+  "wayne_transport":  { password: "robin99",         label: "Wayne Transport Ltd." },
+  "arkham_fleet":     { password: "fleet@123",       label: "Arkham Fleet Services" },
+  // ADD NEW CUSTOMERS HERE ↓
+  // "customer_org":  { password: "their_pass",     label: "Their Business Name" },
+};
+
+// ─── SESSION STATE ─────────────────────────
+let currentTenant = null;  // set after login
+let tenantPrefix  = '';    // "sentinel_<orgId>_" — all storage keys use this
+
+function doLogin() {
+  const orgId = document.getElementById('login-org').value.trim().toLowerCase();
+  const pass  = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+
+  const tenant = TENANTS[orgId];
+  if (!tenant || tenant.password !== pass) {
+    errEl.textContent = '⚠ Invalid organization ID or password. Contact your administrator.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Successful login
+  currentTenant = { id: orgId, ...tenant };
+  tenantPrefix  = 'sentinel_' + orgId + '_';
+
+  // Update all org name displays
+  ['hdr-org','hdr-org2','hdr-org3','hdr-org4'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = tenant.label;
+  });
+
+  sysLog('Logged in as: ' + tenant.label);
+  showScreen('register');
+  init();
+}
+
+function doLogout() {
+  if (!confirm('Sign out of Sentinel DMS?')) return;
+  currentTenant = null;
+  tenantPrefix  = '';
+  stopAllStreams();
+  if (monitorInterval) clearInterval(monitorInterval);
+  if (authInterval)    clearInterval(authInterval);
+  faceMatcher  = null;
+  currentDriver = null;
+  sessionStart  = null;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-login').classList.add('active');
+  sysLog('Signed out');
+}
+
+// ─── TENANT-SCOPED STORAGE ─────────────────
+// All data stored under tenant prefix — completely isolated per org
+function storageGet(key) {
+  try { return JSON.parse(localStorage.getItem(tenantPrefix + key) || 'null'); } catch { return null; }
+}
+function storageSet(key, val) {
+  localStorage.setItem(tenantPrefix + key, JSON.stringify(val));
+}
+function storageDel(key) {
+  localStorage.removeItem(tenantPrefix + key);
+}
+
+// Driver helpers
+function getDrivers() { return storageGet('drivers') || {}; }
+function saveDrivers(obj) { storageSet('drivers', obj); }
+
+// Log helpers
+function getLogs() { return storageGet('logs') || []; }
+function saveLogs(arr) { storageSet('logs', arr); }
+function addLog(entry) {
+  const logs = getLogs();
+  logs.push(entry);
+  saveLogs(logs);
+}
+
+// ─── CONSTANTS ─────────────────────────────
 const MODELS_URL = '/models';
 const CAPTURE_TARGET = 80;
 const EAR_CLOSED_THRESHOLD = 0.23;
-const EAR_OPEN_THRESHOLD = 0.28;
-const BLINK_MIN_MS = 80;
-const BLINK_MAX_MS = 400;
+const EAR_OPEN_THRESHOLD   = 0.28;
+const BLINK_MIN_MS   = 80;
+const BLINK_MAX_MS   = 400;
 const DROWSY_WARN_MS = 1600;
 const DROWSY_CRIT_MS = 3000;
 const YAWN_THRESHOLD = 0.55;
@@ -1040,12 +833,11 @@ const YAWN_DURATION_MS = 2000;
 const HEAD_TILT_WARN = 20;
 const HEAD_TILT_CRIT = 30;
 const HEAD_TILT_DURATION_MS = 2500;
-const RECOG_THRESHOLD = 0.5;
 
-// ─── STATE ────────────────────────────────
+// ─── APP STATE ─────────────────────────────
 let modelsLoaded = false;
 let streams = {};
-let currentScreen = 'register';
+let currentScreen = 'login';
 let isRegistering = false;
 let captureCount = 0;
 let capturedDescriptors = [];
@@ -1060,136 +852,14 @@ let sessionStart = null;
 let sessionAlertCount = 0;
 let totalBlinks = 0;
 let eyeClosedSince = null;
-let eyeOpenSince = null;
 let yawnSince = null;
 let headTiltSince = null;
 let alertActive = false;
 let lastEyeState = 'open';
 let buzzInterval = null;
-let currentSessionId = null;
-let monitorLoopActive = false;
+let modelsInitialized = false;
 
-// ─── FIREBASE CONFIG ──────────────────────
-// 🔴 PASTE YOUR FIREBASE CONFIG HERE (from Firebase Console → Project Settings → Your Apps):
-const firebaseConfig = {
-  apiKey: "AIzaSyA0PiVTfOWz5rp8QkTmtWshaN7HCbPAMvo",
-  authDomain: "batman-dms.firebaseapp.com",
-  projectId: "batman-dms",
-  storageBucket: "batman-dms.firebasestorage.app",
-  messagingSenderId: "946205444821",
-  appId: "1:946205444821:web:752815c785ba31e977305c",
-  measurementId: "G-SRDCTZF2RQ"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const fbAuth  = firebase.auth();
-
-// ─── FIREBASE AUTH ────────────────────────
-async function firebaseLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-password').value;
-  const errEl = document.getElementById('login-error');
-  errEl.style.display = 'none';
-  try {
-    await fbAuth.signInWithEmailAndPassword(email, pass);
-  } catch(e) {
-    errEl.textContent = '⚠ ' + e.message;
-    errEl.style.display = 'block';
-  }
-}
-
-async function firebaseRegisterAdmin() {
-  const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-password').value;
-  const errEl = document.getElementById('login-error');
-  errEl.style.display = 'none';
-  if (!email || pass.length < 6) {
-    errEl.textContent = '⚠ Enter a valid email and password (min 6 chars).';
-    errEl.style.display = 'block';
-    return;
-  }
-  try {
-    await fbAuth.createUserWithEmailAndPassword(email, pass);
-    sysLog(`Admin account created: ${email}`);
-  } catch(e) {
-    errEl.textContent = '⚠ ' + e.message;
-    errEl.style.display = 'block';
-  }
-}
-
-function firebaseLogout() {
-  if (!confirm('Sign out of SENTINEL DMS?')) return;
-  fbAuth.signOut();
-  sysLog('Signed out');
-}
-
-// 🔥 SINGLE AUTH STATE HANDLER (FINAL)
-fbAuth.onAuthStateChanged(user => {
-  if (user) {
-    sysLog(`Authenticated: ${user.email}`);
-
-    document.body.style.display = "block";
-
-    document.getElementById('screen-login').classList.remove('active');
-
-    const anyActive = [...document.querySelectorAll('.screen')].some(
-      s => s.id !== 'screen-login' && s.classList.contains('active')
-    );
-
-    if (!anyActive) showScreen('register');
-
-  } else {
-    document.body.style.display = "block";
-
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-
-    document.getElementById('screen-login').classList.add('active');
-  }
-});
-
-// ─── FIRESTORE DB WRAPPERS ────────────────
-// Drop-in replacements for IndexedDB functions.
-// All call signatures are IDENTICAL — rest of code unchanged.
-
-async function openDB() {
-  // Firebase is initialized above — this is a no-op kept for init() compatibility
-  return Promise.resolve();
-}
-
-async function dbPut(store, data) {
-  if (store === 'drivers') {
-    // Use driver name as document ID (mirrors IndexedDB keyPath: 'name')
-    await db.collection('drivers').doc(data.name).set(data);
-  } else {
-    // logs use auto-generated Firestore document IDs
-    await db.collection(store).add(data);
-  }
-}
-
-async function dbGetAll(store) {
-  try {
-    const snap = await db.collection(store).orderBy('timestamp').get();
-    return snap.docs.map(d => d.data());
-  } catch(e) {
-    // Fallback if no index or timestamp field (first run)
-    const snap = await db.collection(store).get();
-    return snap.docs.map(d => d.data());
-  }
-}
-
-async function dbDelete(store, key) {
-  await db.collection(store).doc(key).delete();
-}
-
-async function dbClear(store) {
-  const snap = await db.collection(store).get();
-  const batch = db.batch();
-  snap.docs.forEach(d => batch.delete(d.ref));
-  await batch.commit();
-}
-
-// ─── BACKGROUND CANVAS ────────────────────
+// ─── BACKGROUND CANVAS ─────────────────────
 (function initBG() {
   const c = document.getElementById('bg-canvas');
   const ctx = c.getContext('2d');
@@ -1205,11 +875,10 @@ async function dbClear(store) {
       s.a += s.v; if (s.a > 1) s.a = 0;
       ctx.beginPath();
       ctx.arc(s.x * c.width, s.y * c.height, s.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0, 200, 255, ${s.a * 0.5})`;
+      ctx.fillStyle = `rgba(250,204,21,${s.a * 0.25})`;
       ctx.fill();
     });
-    // Grid lines
-    ctx.strokeStyle = 'rgba(0, 200, 255, 0.025)';
+    ctx.strokeStyle = 'rgba(250,204,21,0.02)';
     ctx.lineWidth = 1;
     for (let x = 0; x < c.width; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, c.height); ctx.stroke(); }
     for (let y = 0; y < c.height; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(c.width, y); ctx.stroke(); }
@@ -1218,13 +887,12 @@ async function dbClear(store) {
   draw();
 })();
 
-// ─── CLOCK ────────────────────────────────
 setInterval(() => {
   const el = document.getElementById('monitor-clock');
   if (el) el.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
 }, 1000);
 
-// ─── LOG ──────────────────────────────────
+// ─── LOG ───────────────────────────────────
 function sysLog(msg) {
   const d = document.getElementById('mini-log');
   if (!d) return;
@@ -1236,52 +904,46 @@ function sysLog(msg) {
   while (d.children.length > 20) d.removeChild(d.lastChild);
 }
 
-// ─── SCREEN SWITCHING ─────────────────────
+// ─── SCREEN SWITCHING ──────────────────────
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   currentScreen = name;
 
   if (name === 'register') {
-    stopAllStreams();
-    startCamera('reg-video', 'register');
+    stopAllStreams(); startCamera('reg-video', 'register');
   } else if (name === 'auth') {
-    stopStream('monitor');
-    stopStream('register');
+    stopStream('monitor'); stopStream('register');
     startCamera('auth-video', 'auth');
     if (authInterval) clearInterval(authInterval);
     startAuth();
   } else if (name === 'monitor') {
-    stopStream('auth');
-    stopStream('register');
+    stopStream('auth'); stopStream('register');
     startCamera('monitor-video', 'monitor');
     startMonitoring();
-    if (!sessionStart) { sessionStart = Date.now(); }
+    if (!sessionStart) sessionStart = Date.now();
   } else if (name === 'logs') {
-    stopStream('auth');
-    stopStream('register');
+    stopStream('auth'); stopStream('register');
     refreshLogs();
   }
 }
 
-// ─── CAMERA ───────────────────────────────
+// ─── CAMERA ────────────────────────────────
 async function startCamera(videoId, key) {
   try {
-    if (streams[key]) { streams[key].getTracks().forEach(t => t.stop()); }
+    if (streams[key]) streams[key].getTracks().forEach(t => t.stop());
     const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
     streams[key] = stream;
     const v = document.getElementById(videoId);
     v.srcObject = stream;
     await new Promise(r => v.onloadedmetadata = r);
-    // size overlay canvas
-    const wrap = v.parentElement;
     const cid = videoId.replace('video', 'canvas');
     const cv = document.getElementById(cid);
     if (cv) { cv.width = v.videoWidth; cv.height = v.videoHeight; }
-    sysLog(`Camera online [${key}]`);
+    sysLog('Camera online [' + key + ']');
     return v;
   } catch(e) {
-    sysLog(`⚠ Camera error: ${e.message}`);
+    sysLog('⚠ Camera error: ' + e.message);
     alert('Camera access required. Please allow webcam permissions.');
   }
 }
@@ -1289,14 +951,12 @@ async function startCamera(videoId, key) {
 function stopStream(key) {
   if (streams[key]) { streams[key].getTracks().forEach(t => t.stop()); delete streams[key]; }
 }
+function stopAllStreams() { Object.keys(streams).forEach(k => stopStream(k)); }
 
-function stopAllStreams() {
-  Object.keys(streams).forEach(k => stopStream(k));
-}
-
-// ─── LOAD MODELS ──────────────────────────
+// ─── LOAD MODELS ───────────────────────────
 async function loadModels() {
-  document.getElementById('model-status').textContent = '◌ LOADING MODELS...';
+  if (modelsInitialized) { sysLog('Models already loaded'); return; }
+  document.getElementById('model-status').textContent = '◌ Loading models...';
   try {
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL),
@@ -1304,17 +964,18 @@ async function loadModels() {
       faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL),
     ]);
     modelsLoaded = true;
-    document.getElementById('model-status').innerHTML = '<span style="color:var(--green)">● MODELS READY</span>';
-    sysLog('Face-API models loaded successfully');
+    modelsInitialized = true;
+    document.getElementById('model-status').innerHTML = '<span style="color:var(--green)">● Models Ready</span>';
+    sysLog('Face-API models loaded');
     loadFaceMatcher();
     refreshRegisteredUsers();
   } catch(e) {
-    document.getElementById('model-status').innerHTML = '<span style="color:var(--red)">● MODEL LOAD FAILED: ' + e.message + '</span>';
+    document.getElementById('model-status').innerHTML = '<span style="color:var(--red)">● Load Failed: ' + e.message + '</span>';
     sysLog('⚠ Model load failed: ' + e.message);
   }
 }
 
-// ─── REGISTRATION ─────────────────────────
+// ─── REGISTRATION ──────────────────────────
 async function startRegistration() {
   if (!modelsLoaded) { alert('Models still loading. Please wait.'); return; }
   regName = document.getElementById('reg-name').value.trim();
@@ -1326,7 +987,7 @@ async function startRegistration() {
   capturedDescriptors = [];
   document.getElementById('start-reg-btn').disabled = true;
   document.getElementById('capture-status').textContent = 'Scanning face...';
-  sysLog(`Starting registration: ${regName}`);
+  sysLog('Starting registration: ' + regName);
 
   const video = document.getElementById('reg-video');
   const canvas = document.getElementById('reg-canvas');
@@ -1334,29 +995,23 @@ async function startRegistration() {
 
   const interval = setInterval(async () => {
     if (!isRegistering) { clearInterval(interval); return; }
-
     const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
     let det;
     try {
-      det = await faceapi.detectSingleFace(video, opts)
-        .withFaceLandmarks(true)
-        .withFaceDescriptor();
+      det = await faceapi.detectSingleFace(video, opts).withFaceLandmarks(true).withFaceDescriptor();
     } catch(e) { return; }
 
-    // Draw overlay
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (det) {
       const box = det.detection.box;
       ctx.strokeStyle = captureCount < CAPTURE_TARGET ? '#facc15' : '#00ff88';
       ctx.lineWidth = 2;
       ctx.strokeRect(box.x, box.y, box.width, box.height);
-      // label
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(box.x, box.y - 24, 180, 22);
+      ctx.fillRect(box.x, box.y - 24, 200, 22);
       ctx.fillStyle = '#facc15';
-      ctx.font = '500 12px Inter';
-      ctx.fillText(`CAPTURING ${captureCount}/${CAPTURE_TARGET}`, box.x + 4, box.y - 8);
-      // landmarks dots
+      ctx.font = '500 11px Inter';
+      ctx.fillText('Capturing ' + captureCount + '/' + CAPTURE_TARGET, box.x + 4, box.y - 8);
       drawLandmarks(ctx, det.landmarks.positions, '#facc15', 1.5);
 
       capturedDescriptors.push(det.descriptor);
@@ -1364,147 +1019,92 @@ async function startRegistration() {
 
       const pct = Math.min((captureCount / CAPTURE_TARGET) * 100, 100);
       document.getElementById('capture-progress').style.width = pct + '%';
-      document.getElementById('capture-count').textContent = `${captureCount} / ${CAPTURE_TARGET} samples`;
-      document.getElementById('capture-status').textContent = `Capturing... ${captureCount}`;
+      document.getElementById('capture-count').textContent = captureCount + ' / ' + CAPTURE_TARGET + ' samples';
+      document.getElementById('capture-status').textContent = 'Capturing... ' + captureCount;
 
       if (captureCount >= CAPTURE_TARGET) {
         clearInterval(interval);
-
-        if (isRegistering) {
-          isRegistering = false;   // 🔥 IMPORTANT (prevents multiple calls)
-          console.log("FINAL SAVE TRIGGERED");
-          await saveDriver();
-        }
+        if (isRegistering) { isRegistering = false; await saveDriver(); }
       }
     } else {
-      ctx.strokeStyle = 'rgba(255,34,68,0.5)';
+      ctx.strokeStyle = 'rgba(239,68,68,0.5)';
       ctx.lineWidth = 1;
       ctx.strokeRect(canvas.width/2 - 80, canvas.height/2 - 100, 160, 200);
-      ctx.fillStyle = '#ff2244';
-      ctx.font = '500 12px Inter';
-      ctx.fillText('NO FACE DETECTED', canvas.width/2 - 70, canvas.height/2 - 106);
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '500 11px Inter';
+      ctx.fillText('No face detected', canvas.width/2 - 60, canvas.height/2 - 106);
     }
   }, 100);
 }
 
 async function saveDriver() {
   try {
-    console.log("===== SAVE START =====");
+    if (!capturedDescriptors.length) { alert('No face data captured!'); return; }
 
-    if (!capturedDescriptors || capturedDescriptors.length === 0) {
-      alert("No face data captured!");
-      return;
-    }
+    // Flatten Float32Arrays to plain numbers
+    const flat = [];
+    capturedDescriptors.forEach(d => { Array.from(d).forEach(v => flat.push(v)); });
 
-const serializableDescs = [];
+    // Save to tenant-scoped localStorage
+    const drivers = getDrivers();
+    drivers[regName] = { name: regName, descriptors: flat, createdAt: Date.now() };
+    saveDrivers(drivers);
 
-// 🔥 FORCE FLATTEN EVERYTHING
-function flattenDeep(arr) {
-  arr.forEach(item => {
-    if (Array.isArray(item) || item instanceof Float32Array) {
-      flattenDeep(Array.from(item));
-    } else {
-      serializableDescs.push(item);
-    }
-  });
-}
+    sysLog('Driver saved: ' + regName);
+    alert('✅ Driver Registered: ' + regName);
 
-flattenDeep(capturedDescriptors);
-
-console.log("FINAL LENGTH:", serializableDescs.length);
-console.log("CHECK TYPE:", typeof serializableDescs[0]);
-
-await db.collection("drivers").doc(regName).set({
-  name: regName,
-  descriptors: serializableDescs,
-  createdAt: new Date()
-});
-
-console.log("✅ FIRESTORE SUCCESS");
-
-alert("✅ Driver Registered");
-await loadFaceMatcher();
-await refreshRegisteredUsers();
-// RESET
-isRegistering = false;
-captureCount = 0;
-capturedDescriptors = [];
-
-document.getElementById('start-reg-btn').disabled = false;
-document.getElementById('capture-status').textContent = `✓ ${regName} registered!`;
-document.getElementById('reg-name').value = '';
+    isRegistering = false;
+    captureCount = 0;
+    capturedDescriptors = [];
+    document.getElementById('start-reg-btn').disabled = false;
+    document.getElementById('capture-status').textContent = '✓ ' + regName + ' registered!';
+    document.getElementById('reg-name').value = '';
 
     await loadFaceMatcher();
     refreshRegisteredUsers();
-
-  } catch (err) {
-    console.error("🔥 FIRESTORE ERROR:", err);
-    alert("❌ SAVE FAILED: " + err.message);
+  } catch(err) {
+    alert('❌ Save failed: ' + err.message);
   }
 }
-async function loadFaceMatcher() {
-  console.log("🔄 Loading drivers from Firestore...");
 
-  const snapshot = await db.collection("drivers").get();
+function loadFaceMatcher() {
+  const drivers = getDrivers();
+  const names = Object.keys(drivers);
+  if (!names.length) { faceMatcher = null; return; }
 
-  if (snapshot.empty) {
-    console.log("❌ No drivers in DB");
-    faceMatcher = null;
-    return;
-  }
-
-  const labeledDescriptors = [];
-
-  snapshot.forEach(doc => {
-    const data = doc.data();
-
-    console.log("Driver found:", data.name);
-
-    const descArray = [];
-
-    // 🔥 convert flat array → 128 chunks
-    for (let i = 0; i < data.descriptors.length; i += 128) {
-      const slice = data.descriptors.slice(i, i + 128);
-      descArray.push(new Float32Array(slice));
+  const labeled = names.map(name => {
+    const d = drivers[name];
+    const descs = [];
+    for (let i = 0; i < d.descriptors.length; i += 128) {
+      descs.push(new Float32Array(d.descriptors.slice(i, i + 128)));
     }
-
-    labeledDescriptors.push(
-      new faceapi.LabeledFaceDescriptors(data.name, descArray)
-    );
+    return new faceapi.LabeledFaceDescriptors(name, descs);
   });
 
-  faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.5);
-
-  console.log("✅ FaceMatcher READY:", labeledDescriptors.length);
+  faceMatcher = new faceapi.FaceMatcher(labeled, 0.5);
+  sysLog('Face matcher ready: ' + names.length + ' driver(s)');
 }
-async function refreshRegisteredUsers() {
-  const container = document.querySelector("#reg-users-list");
 
-  const snapshot = await db.collection("drivers").get();
-
-  if (snapshot.empty) {
-    container.innerHTML = "No drivers registered.";
-    return;
-  }
-
-  let html = "";
-
-  snapshot.forEach(doc => {
-    html += `<div>${doc.data().name}</div>`;
-  });
-
-  container.innerHTML = html;
+function refreshRegisteredUsers() {
+  const drivers = getDrivers();
+  const names = Object.keys(drivers);
+  const container = document.getElementById('reg-users-list');
+  if (!names.length) { container.innerHTML = '<span class="text-sm">No drivers registered.</span>'; return; }
+  container.innerHTML = names.map(n =>
+    `<div class="user-pill"><span>◈</span> ${n}</div>`
+  ).join('');
 }
-async function clearAllData() {
-  if (!confirm('Clear ALL registered drivers? This cannot be undone.')) return;
-  await dbClear('drivers');
-  await dbClear('logs');
+
+function clearAllData() {
+  if (!confirm('Clear ALL registered drivers for your organization? This cannot be undone.')) return;
+  storageSet('drivers', {});
+  storageSet('logs', []);
   faceMatcher = null;
   refreshRegisteredUsers();
-  sysLog('All data cleared');
+  sysLog('All data cleared for: ' + currentTenant.label);
 }
 
-// ─── AUTHENTICATION ────────────────────────
+// ─── AUTHENTICATION ─────────────────────────
 async function startAuth() {
   if (!modelsLoaded) return;
   if (authInterval) clearInterval(authInterval);
@@ -1512,22 +1112,15 @@ async function startAuth() {
   const video = document.getElementById('auth-video');
   const canvas = document.getElementById('auth-canvas');
   if (!video.srcObject) await startCamera('auth-video', 'auth');
-
   const ctx = canvas.getContext('2d');
 
   authInterval = setInterval(async () => {
     if (currentScreen !== 'auth') { clearInterval(authInterval); return; }
-
     const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
     let det;
-    try {
-      det = await faceapi.detectSingleFace(video, opts)
-        .withFaceLandmarks(true)
-        .withFaceDescriptor();
-    } catch(e) { return; }
+    try { det = await faceapi.detectSingleFace(video, opts).withFaceLandmarks(true).withFaceDescriptor(); } catch(e) { return; }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     if (det) {
       const box = det.detection.box;
       if (faceMatcher) {
@@ -1536,47 +1129,43 @@ async function startAuth() {
         const confidence = Math.max(0, 1 - match.distance);
         const confPct = (confidence * 100).toFixed(1);
 
-        // Draw box
-        ctx.strokeStyle = isKnown ? '#00ff88' : '#ff2244';
+        ctx.strokeStyle = isKnown ? '#22c55e' : '#ef4444';
         ctx.lineWidth = 2;
         ctx.strokeRect(box.x, box.y, box.width, box.height);
         ctx.fillStyle = 'rgba(0,0,0,0.7)';
         ctx.fillRect(box.x, box.y - 50, 200, 48);
         ctx.font = '13px Inter';
-        ctx.fillStyle = isKnown ? '#00ff88' : '#ff2244';
-        ctx.fillText(isKnown ? `✓ ${match.label}` : '✗ UNKNOWN', box.x + 6, box.y - 32);
-        ctx.font = '500 12px Inter';
+        ctx.fillStyle = isKnown ? '#22c55e' : '#ef4444';
+        ctx.fillText(isKnown ? '✓ ' + match.label : '✗ Unknown', box.x + 6, box.y - 32);
+        ctx.font = '11px Inter';
         ctx.fillStyle = 'rgba(180,210,240,0.7)';
-        ctx.fillText(`CONF: ${confPct}%  DIST: ${match.distance.toFixed(3)}`, box.x + 6, box.y - 16);
+        ctx.fillText('Conf: ' + confPct + '%  Dist: ' + match.distance.toFixed(3), box.x + 6, box.y - 16);
 
-        // UI Update
         document.getElementById('recog-result').textContent = isKnown ? match.label : 'Unknown User';
         document.getElementById('recog-result').style.color = isKnown ? 'var(--green)' : 'var(--red)';
-        document.getElementById('recog-confidence').textContent = `CONFIDENCE: ${confPct}% · DISTANCE: ${match.distance.toFixed(3)}`;
+        document.getElementById('recog-confidence').textContent = 'Confidence: ' + confPct + '%  ·  Distance: ' + match.distance.toFixed(3);
 
         if (isKnown && confidence > 0.55) {
           await logEntry(match.label, confPct);
           currentDriver = match.label;
           document.getElementById('authed-info').style.display = 'block';
-          document.getElementById('authed-info').textContent = `✓ AUTHENTICATED: ${match.label} · ENTRY LOGGED`;
+          document.getElementById('authed-info').textContent = '✓ Authenticated: ' + match.label + ' · Entry Logged';
           document.getElementById('go-monitor-btn').disabled = false;
-          document.getElementById('monitor-driver-label').textContent = `DRIVER: ${match.label.toUpperCase()}`;
+          document.getElementById('monitor-driver-label').textContent = 'Driver: ' + match.label.toUpperCase();
           clearInterval(authInterval);
         }
       } else {
-        ctx.strokeStyle = '#ffcc00';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#facc15'; ctx.lineWidth = 1;
         ctx.strokeRect(box.x, box.y, box.width, box.height);
-        ctx.fillStyle = '#ffcc00';
-        ctx.font = '500 12px Inter';
-        ctx.fillText('NO DRIVERS REGISTERED', box.x, box.y - 6);
+        ctx.fillStyle = '#facc15'; ctx.font = '11px Inter';
+        ctx.fillText('No drivers registered', box.x, box.y - 6);
         document.getElementById('recog-result').textContent = 'No drivers registered';
         document.getElementById('recog-result').style.color = 'var(--yellow)';
       }
     } else {
       document.getElementById('recog-result').textContent = 'Scanning...';
       document.getElementById('recog-result').style.color = 'var(--text-dim)';
-      document.getElementById('recog-confidence').textContent = 'ALIGN FACE IN FRAME';
+      document.getElementById('recog-confidence').textContent = 'Align face in frame';
     }
   }, 200);
 }
@@ -1584,142 +1173,98 @@ async function startAuth() {
 async function logEntry(name, confidence) {
   const now = new Date();
   const entry = {
-    name,
+    name, confidence: confidence + '%',
     entry_time: now.toLocaleTimeString('en-US', { hour12: false }),
     date: now.toLocaleDateString('en-GB'),
     status: 'authenticated',
-    confidence: confidence + '%',
     timestamp: now.getTime()
   };
-  await dbPut('logs', entry);
-  sysLog(`Entry logged: ${name}`);
+  addLog(entry);
+  sysLog('Entry logged: ' + name);
   refreshRecentEntries();
 }
 
-async function refreshRecentEntries() {
-  const logs = await dbGetAll('logs');
+function refreshRecentEntries() {
+  const logs = getLogs().slice(-3).reverse();
   const container = document.getElementById('recent-entries');
-  const recent = logs.slice(-3).reverse();
-  if (!recent.length) { container.innerHTML = '<span class="text-sm">No entries yet.</span>'; return; }
-  container.innerHTML = recent.map(e =>
-    `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-family:var(--body);font-size:0.7rem;">
+  if (!logs.length) { container.innerHTML = '<span class="text-sm">No entries yet.</span>'; return; }
+  container.innerHTML = logs.map(e =>
+    `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:0.7rem;">
       <span style="color:var(--green)">✓ ${e.name}</span>
       <span style="float:right;color:var(--text-dim)">${e.entry_time}</span>
     </div>`
   ).join('');
 }
 
-// ─── LOGS SCREEN ──────────────────────────
-async function refreshLogs() {
-  const logs = await dbGetAll('logs');
+// ─── LOGS SCREEN ───────────────────────────
+function refreshLogs() {
+  const logs = getLogs();
   const tbody = document.getElementById('logs-tbody');
-  document.getElementById('log-count').textContent = `${logs.length} entries`;
+  document.getElementById('log-count').textContent = logs.length + ' entries';
   if (!logs.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">No entries logged yet.</td></tr>';
     return;
   }
-  const sorted = logs.slice().reverse();
-  tbody.innerHTML = sorted.map((e, i) =>
+  tbody.innerHTML = logs.slice().reverse().map((e, i) =>
     `<tr>
       <td style="color:var(--text-dim)">${logs.length - i}</td>
       <td style="color:var(--accent)">${e.name}</td>
       <td>${e.entry_time}</td>
       <td style="color:var(--text-dim)">${e.date}</td>
-      <td><span class="badge green">${e.status.toUpperCase()}</span></td>
+      <td><span class="badge green">${(e.status || 'authenticated').toUpperCase()}</span></td>
       <td style="color:var(--green)">${e.confidence}</td>
     </tr>`
   ).join('');
 }
 
-async function clearLogs() {
-  if (!confirm('Clear all entry logs?')) return;
-  await dbClear('logs');
+function clearLogs() {
+  if (!confirm('Clear all entry logs for your organization?')) return;
+  saveLogs([]);
   refreshLogs();
 }
 
-// ─── EAR CALCULATION ──────────────────────
-function euclidean(p1, p2) {
-  return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+// ─── EAR / MAR ─────────────────────────────
+function euclidean(p1, p2) { return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2); }
+function computeEAR(e) { return (euclidean(e[1], e[5]) + euclidean(e[2], e[4])) / (2 * euclidean(e[0], e[3])); }
+function computeMAR(m) { return (euclidean(m[2], m[10]) + euclidean(m[4], m[8])) / (2 * euclidean(m[0], m[6])); }
+function getEyePoints(lm, side) {
+  const p = lm.positions;
+  return side === 'left' ? [p[36],p[37],p[38],p[39],p[40],p[41]] : [p[42],p[43],p[44],p[45],p[46],p[47]];
+}
+function getMouthPoints(lm) {
+  const p = lm.positions;
+  return [p[48],p[49],p[50],p[51],p[52],p[53],p[54],p[55],p[56],p[57],p[58],p[59]];
+}
+function computeHeadTilt(lm) {
+  const p = lm.positions;
+  const lE = { x: (p[36].x + p[39].x)/2, y: (p[36].y + p[39].y)/2 };
+  const rE = { x: (p[42].x + p[45].x)/2, y: (p[42].y + p[45].y)/2 };
+  return Math.atan2(rE.y - lE.y, rE.x - lE.x) * (180 / Math.PI);
 }
 
-function computeEAR(eyePts) {
-  // EAR = (|p2-p6| + |p3-p5|) / (2 * |p1-p4|)
-  const A = euclidean(eyePts[1], eyePts[5]);
-  const B = euclidean(eyePts[2], eyePts[4]);
-  const C = euclidean(eyePts[0], eyePts[3]);
-  return (A + B) / (2.0 * C);
-}
-
-function computeMAR(mouthPts) {
-  // Mouth Aspect Ratio using key mouth landmarks
-  const A = euclidean(mouthPts[2], mouthPts[10]); // vertical inner
-  const B = euclidean(mouthPts[4], mouthPts[8]);   // vertical inner 2
-  const C = euclidean(mouthPts[0], mouthPts[6]);   // horizontal
-  return (A + B) / (2.0 * C);
-}
-
-// face-api.js landmark indices for 68-point model
-// Left eye: 36-41, Right eye: 42-47, Mouth outer: 48-59 inner: 60-67
-function getEyePoints(landmarks, side) {
-  const pts = landmarks.positions;
-  if (side === 'left')  return [pts[36], pts[37], pts[38], pts[39], pts[40], pts[41]];
-  if (side === 'right') return [pts[42], pts[43], pts[44], pts[45], pts[46], pts[47]];
-}
-
-function getMouthPoints(landmarks) {
-  const pts = landmarks.positions;
-  return [pts[48], pts[49], pts[50], pts[51], pts[52], pts[53], pts[54], pts[55], pts[56], pts[57], pts[58], pts[59]];
-}
-
-function computeHeadTilt(landmarks) {
-  const pts = landmarks.positions;
-  // Use left eye center vs right eye center
-  const lEye = { x: (pts[36].x + pts[39].x) / 2, y: (pts[36].y + pts[39].y) / 2 };
-  const rEye = { x: (pts[42].x + pts[45].x) / 2, y: (pts[42].y + pts[45].y) / 2 };
-  return Math.atan2(rEye.y - lEye.y, rEye.x - lEye.x) * (180 / Math.PI);
-}
-
-// ─── LANDMARK DRAWING ─────────────────────
-function drawLandmarks(ctx, pts, color, radius) {
+function drawLandmarks(ctx, pts, color, r) {
   ctx.fillStyle = color;
-  pts.forEach(p => {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-    ctx.fill();
-  });
+  pts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI*2); ctx.fill(); });
 }
-
 function drawEyeOutline(ctx, pts, color) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
   pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-  ctx.closePath();
-  ctx.stroke();
+  ctx.closePath(); ctx.stroke();
 }
-
 function drawMouthOutline(ctx, pts, color) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
   pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-  ctx.closePath();
-  ctx.stroke();
+  ctx.closePath(); ctx.stroke();
 }
 
-// ─── MONITORING ───────────────────────────
+// ─── MONITORING ────────────────────────────
 function startMonitoring() {
   if (monitorInterval) clearInterval(monitorInterval);
-  monitorLoopActive = true;
-  eyeClosedSince = null;
-  yawnSince = null;
-  headTiltSince = null;
-  lastEyeState = 'open';
+  eyeClosedSince = null; yawnSince = null; headTiltSince = null; lastEyeState = 'open';
 
   const video = document.getElementById('monitor-video');
   const canvas = document.getElementById('monitor-canvas');
   const ctx = canvas.getContext('2d');
-
   const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 });
 
   monitorInterval = setInterval(async () => {
@@ -1727,148 +1272,98 @@ function startMonitoring() {
     if (!video.srcObject) return;
 
     let det;
-    try {
-      det = await faceapi.detectSingleFace(video, opts)
-        .withFaceLandmarks(true);
-    } catch(e) { return; }
-
+    try { det = await faceapi.detectSingleFace(video, opts).withFaceLandmarks(true); } catch(e) { return; }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (!det) {
-      // No face
       document.getElementById('m-eye').textContent = '—';
       document.getElementById('m-mouth').textContent = '—';
       document.getElementById('m-tilt').textContent = '—';
-      addEvent('⚠ Face not detected', 'var(--yellow)');
       return;
     }
 
     const lm = det.landmarks;
     const pts = lm.positions;
-
-    // ── EAR ──
     const leftEye  = getEyePoints(lm, 'left');
     const rightEye = getEyePoints(lm, 'right');
     const earL = computeEAR(leftEye);
     const earR = computeEAR(rightEye);
     const earAvg = (earL + earR) / 2;
-    console.log("EAR AVG:", earAvg);
-    // ── MAR (mouth) ──
     const mouthPts = getMouthPoints(lm);
     const mar = computeMAR(mouthPts);
-
-    // ── Head Tilt ──
     const tilt = computeHeadTilt(lm);
 
-    // ── DRAW overlays ──
-    // Face box
     const box = det.detection.box;
-    ctx.strokeStyle = 'rgba(0,200,255,0.4)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(250,204,21,0.35)'; ctx.lineWidth = 1;
     ctx.strokeRect(box.x, box.y, box.width, box.height);
 
-    // Eye outlines
-    const eyeColor = earAvg < EAR_CLOSED_THRESHOLD ? '#ff2244' : '#facc15';
+    const eyeColor = earAvg < EAR_CLOSED_THRESHOLD ? '#ef4444' : '#facc15';
     drawEyeOutline(ctx, leftEye, eyeColor);
     drawEyeOutline(ctx, rightEye, eyeColor);
+    drawMouthOutline(ctx, mouthPts, mar > YAWN_THRESHOLD ? '#facc15' : '#22c55e');
 
-    // Mouth outline
-    const mouthColor = mar > YAWN_THRESHOLD ? '#ffcc00' : '#00ff88';
-    drawMouthOutline(ctx, mouthPts, mouthColor);
+    ctx.fillStyle = 'rgba(250,204,21,0.2)';
+    pts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 1, 0, Math.PI*2); ctx.fill(); });
 
-    // Nose bridge for head tilt
-    ctx.strokeStyle = 'rgba(0,200,255,0.3)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(pts[27].x, pts[27].y);
-    ctx.lineTo(pts[30].x, pts[30].y);
-    ctx.stroke();
-
-    // All landmark dots (subtle)
-    ctx.fillStyle = 'rgba(0,200,255,0.25)';
-    pts.forEach(p => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 1, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    // ── UPDATE UI ──
     const earLPct = Math.min(earL / 0.4, 1) * 100;
     const earRPct = Math.min(earR / 0.4, 1) * 100;
     document.getElementById('ear-l-val').textContent = earL.toFixed(3);
     document.getElementById('ear-r-val').textContent = earR.toFixed(3);
     const elb = document.getElementById('ear-l-bar');
     const erb = document.getElementById('ear-r-bar');
-    elb.style.width = earLPct + '%';
-    erb.style.width = earRPct + '%';
-    elb.style.background = earL < EAR_CLOSED_THRESHOLD ? 'var(--red)' : 'var(--green)';
-    erb.style.background = earR < EAR_CLOSED_THRESHOLD ? 'var(--red)' : 'var(--green)';
-
+    elb.style.width = earLPct + '%'; elb.style.background = earL < EAR_CLOSED_THRESHOLD ? 'var(--red)' : 'var(--green)';
+    erb.style.width = earRPct + '%'; erb.style.background = earR < EAR_CLOSED_THRESHOLD ? 'var(--red)' : 'var(--green)';
     document.getElementById('m-tilt').textContent = tilt.toFixed(1) + '°';
     document.getElementById('m-blinks').textContent = totalBlinks;
 
-    // ─── DROWSINESS LOGIC ───
-
     const now = Date.now();
-    let fatigueLevel = 'normal'; // normal | warning | critical
-
-    // === EYE CLOSURE LOGIC ===
+    let fatigueLevel = 'normal';
     const eyesClosed = earAvg < EAR_CLOSED_THRESHOLD;
     const eyesOpen   = earAvg > EAR_OPEN_THRESHOLD;
 
     if (eyesClosed) {
-      if (lastEyeState === 'open') { eyeClosedSince = now; }
+      if (lastEyeState === 'open') eyeClosedSince = now;
       lastEyeState = 'closed';
       document.getElementById('m-eye').textContent = 'CLOSED';
       document.getElementById('m-eye').style.color = 'var(--red)';
-      document.getElementById('badge-eye').textContent = 'EYE: CLOSED';
+      document.getElementById('badge-eye').textContent = 'Eye: Closed';
       document.getElementById('badge-eye').className = 'badge red';
-
       const closedDur = now - (eyeClosedSince || now);
-      if (closedDur >= DROWSY_CRIT_MS) {
-        fatigueLevel = 'critical';
-      } else if (closedDur >= DROWSY_WARN_MS) {
-        fatigueLevel = 'warning';
-      }
+      if (closedDur >= DROWSY_CRIT_MS) fatigueLevel = 'critical';
+      else if (closedDur >= DROWSY_WARN_MS) fatigueLevel = 'warning';
     } else if (eyesOpen) {
       if (lastEyeState === 'closed' && eyeClosedSince) {
         const dur = now - eyeClosedSince;
-        if (dur >= BLINK_MIN_MS && dur <= BLINK_MAX_MS) {
-          totalBlinks++;
-          document.getElementById('s-blinks').textContent = totalBlinks;
-        }
+        if (dur >= BLINK_MIN_MS && dur <= BLINK_MAX_MS) { totalBlinks++; document.getElementById('s-blinks').textContent = totalBlinks; }
         eyeClosedSince = null;
       }
-    } else {
+      lastEyeState = 'open';
       document.getElementById('m-eye').textContent = 'OPEN';
       document.getElementById('m-eye').style.color = 'var(--green)';
-      document.getElementById('badge-eye').textContent = 'EYE: OPEN';
+      document.getElementById('badge-eye').textContent = 'Eye: Open';
       document.getElementById('badge-eye').className = 'badge green';
     }
 
-    // === YAWN LOGIC ===
     if (mar > YAWN_THRESHOLD) {
       if (!yawnSince) yawnSince = now;
-      const yawnDur = now - yawnSince;
       document.getElementById('m-mouth').textContent = 'YAWNING';
       document.getElementById('m-mouth').style.color = 'var(--yellow)';
-      document.getElementById('badge-mouth').textContent = 'YAWN DETECTED';
+      document.getElementById('badge-mouth').textContent = 'Yawn Detected';
       document.getElementById('badge-mouth').className = 'badge yellow';
-      if (yawnDur >= YAWN_DURATION_MS && fatigueLevel === 'normal') fatigueLevel = 'warning';
+      if ((now - yawnSince) >= YAWN_DURATION_MS && fatigueLevel === 'normal') fatigueLevel = 'warning';
     } else {
       yawnSince = null;
       document.getElementById('m-mouth').textContent = 'NORMAL';
       document.getElementById('m-mouth').style.color = 'var(--text)';
-      document.getElementById('badge-mouth').textContent = 'MOUTH: OK';
+      document.getElementById('badge-mouth').textContent = 'Mouth: OK';
       document.getElementById('badge-mouth').className = 'badge accent';
     }
 
-    // === HEAD TILT LOGIC ===
     const absTilt = Math.abs(tilt);
     if (absTilt > HEAD_TILT_WARN) {
       if (!headTiltSince) headTiltSince = now;
       const tiltDur = now - headTiltSince;
-      document.getElementById('badge-tilt').textContent = `TILT: ${tilt.toFixed(0)}°`;
+      document.getElementById('badge-tilt').textContent = 'Tilt: ' + tilt.toFixed(0) + '°';
       document.getElementById('badge-tilt').className = 'badge yellow';
       if (tiltDur >= HEAD_TILT_DURATION_MS) {
         if (absTilt > HEAD_TILT_CRIT && fatigueLevel !== 'critical') fatigueLevel = 'critical';
@@ -1876,26 +1371,23 @@ function startMonitoring() {
       }
     } else {
       headTiltSince = null;
-      document.getElementById('badge-tilt').textContent = 'TILT: OK';
+      document.getElementById('badge-tilt').textContent = 'Tilt: OK';
       document.getElementById('badge-tilt').className = 'badge green';
     }
 
-    // === UPDATE STATUS ===
     updateFatigueStatus(fatigueLevel);
 
-    // Draw HUD text on canvas
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(0, 0, 200, 70);
-    ctx.font = '500 12px Inter';
-    ctx.fillStyle = eyesClosed ? '#ff2244' : '#facc15';
-    ctx.fillText(`EAR: ${earAvg.toFixed(3)} [${eyesClosed ? 'CLOSED' : 'OPEN'}]`, 8, 16);
-    ctx.fillStyle = mar > YAWN_THRESHOLD ? '#ffcc00' : '#facc15';
-    ctx.fillText(`MAR: ${mar.toFixed(3)} [${mar > YAWN_THRESHOLD ? 'YAWN' : 'NORMAL'}]`, 8, 30);
-    ctx.fillStyle = absTilt > HEAD_TILT_WARN ? '#ffcc00' : '#facc15';
-    ctx.fillText(`TILT: ${tilt.toFixed(1)}°`, 8, 44);
-    ctx.fillStyle = fatigueLevel === 'critical' ? '#ff2244' : fatigueLevel === 'warning' ? '#ffcc00' : '#00ff88';
-    ctx.fillText(`STATUS: ${fatigueLevel.toUpperCase()}`, 8, 58);
-
+    ctx.font = '11px Inter';
+    ctx.fillStyle = eyesClosed ? '#ef4444' : '#facc15';
+    ctx.fillText('EAR: ' + earAvg.toFixed(3) + ' [' + (eyesClosed ? 'CLOSED' : 'OPEN') + ']', 8, 16);
+    ctx.fillStyle = mar > YAWN_THRESHOLD ? '#facc15' : '#facc15';
+    ctx.fillText('MAR: ' + mar.toFixed(3) + ' [' + (mar > YAWN_THRESHOLD ? 'YAWN' : 'NORMAL') + ']', 8, 30);
+    ctx.fillStyle = absTilt > HEAD_TILT_WARN ? '#facc15' : '#facc15';
+    ctx.fillText('Tilt: ' + tilt.toFixed(1) + '°', 8, 44);
+    ctx.fillStyle = fatigueLevel === 'critical' ? '#ef4444' : fatigueLevel === 'warning' ? '#facc15' : '#22c55e';
+    ctx.fillText('Status: ' + fatigueLevel.toUpperCase(), 8, 58);
   }, 100);
 }
 
@@ -1903,26 +1395,19 @@ function updateFatigueStatus(level) {
   const box = document.getElementById('fatigue-status-box');
   const label = document.getElementById('fatigue-label');
   const sub = document.getElementById('fatigue-sub');
-
   box.className = level === 'critical' ? 'critical' : level === 'warning' ? 'warning' : '';
   if (level === 'normal') {
-    label.textContent = 'NORMAL';
-    label.style.color = 'var(--green)';
-    sub.textContent = 'All parameters nominal';
-    box.style.borderColor = 'var(--green)';
+    label.textContent = 'NORMAL'; label.style.color = 'var(--green)';
+    sub.textContent = 'All parameters nominal'; box.style.borderColor = 'var(--green)';
     dismissAlert();
   } else if (level === 'warning') {
-    label.textContent = 'WARNING';
-    label.style.color = 'var(--yellow)';
-    sub.textContent = 'Fatigue signs detected';
-    box.style.borderColor = 'var(--yellow)';
-    addEvent('⚠ FATIGUE WARNING', 'var(--yellow)');
+    label.textContent = 'WARNING'; label.style.color = 'var(--yellow)';
+    sub.textContent = 'Fatigue signs detected'; box.style.borderColor = 'var(--yellow)';
+    addEvent('⚠ Fatigue Warning', 'var(--yellow)');
   } else if (level === 'critical') {
     if (!alertActive) {
-      label.textContent = 'CRITICAL';
-      label.style.color = 'var(--red)';
-      sub.textContent = 'DRIVER DROWSY — TAKE ACTION';
-      box.style.borderColor = 'var(--red)';
+      label.textContent = 'CRITICAL'; label.style.color = 'var(--red)';
+      sub.textContent = 'DRIVER DROWSY — TAKE ACTION'; box.style.borderColor = 'var(--red)';
       triggerAlert();
     }
   }
@@ -1935,19 +1420,19 @@ function triggerAlert() {
   document.getElementById('s-alerts').textContent = sessionAlertCount;
   document.getElementById('alert-overlay').style.display = 'block';
   document.getElementById('alert-banner').style.display = 'block';
-  addEvent('🚨 CRITICAL ALERT TRIGGERED', 'var(--red)');
+  addEvent('🚨 Critical Alert Triggered', 'var(--red)');
   if (soundEnabled) startBuzzer();
-  // ─── Log drowsiness event to Firestore ───
-  const user = fbAuth.currentUser;
-  db.collection('logs').add({
+
+  // Save alert to tenant log
+  const now = new Date();
+  addLog({
     name: currentDriver || 'unknown',
-    type: 'drowsiness_alert',
-    status: 'critical',
-    entry_time: new Date().toLocaleTimeString('en-US', { hour12: false }),
-    date: new Date().toLocaleDateString('en-GB'),
-    timestamp: Date.now(),
-    uid: user ? user.uid : null
-  }).catch(e => sysLog('⚠ Firestore log error: ' + e.message));
+    confidence: '—',
+    entry_time: now.toLocaleTimeString('en-US', { hour12: false }),
+    date: now.toLocaleDateString('en-GB'),
+    status: 'drowsiness_alert',
+    timestamp: now.getTime()
+  });
 }
 
 function dismissAlert() {
@@ -1957,292 +1442,73 @@ function dismissAlert() {
   stopBuzzer();
 }
 
-// ─── AUDIO BUZZER ─────────────────────────
+// ─── AUDIO ─────────────────────────────────
 function getAudioCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return audioCtx;
 }
-
 function startBuzzer() {
   stopBuzzer();
   if (!soundEnabled) return;
-  let beepCount = 0;
   buzzInterval = setInterval(() => {
     if (!alertActive || !soundEnabled) { stopBuzzer(); return; }
     playBeep(880, 0.2, 0.3);
-    beepCount++;
   }, 500);
 }
-
 function playBeep(freq, vol, dur) {
   try {
     const ctx = getAudioCtx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'square';
-    osc.frequency.value = freq;
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'square'; osc.frequency.value = freq;
     gain.gain.setValueAtTime(vol, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + dur);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur);
   } catch(e) {}
 }
-
-function stopBuzzer() {
-  if (buzzInterval) { clearInterval(buzzInterval); buzzInterval = null; }
-}
-
+function stopBuzzer() { if (buzzInterval) { clearInterval(buzzInterval); buzzInterval = null; } }
 function toggleSound() {
   soundEnabled = !soundEnabled;
-  const btns = [document.getElementById('sound-btn'), document.getElementById('sound-toggle2')];
-  btns.forEach(b => { if (b) b.textContent = soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF'; });
+  ['sound-btn','sound-toggle2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = soundEnabled ? '🔊 Sound On' : '🔇 Sound Off';
+  });
   if (!soundEnabled) stopBuzzer();
-  sysLog(`Sound ${soundEnabled ? 'enabled' : 'disabled'}`);
 }
 
 // ─── SESSION TIMER ─────────────────────────
 setInterval(() => {
   if (!sessionStart) return;
-  const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
-  const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
-  const s = String(elapsed % 60).padStart(2, '0');
+  const e = Math.floor((Date.now() - sessionStart) / 1000);
+  const m = String(Math.floor(e / 60)).padStart(2,'0');
+  const s = String(e % 60).padStart(2,'0');
   const el = document.getElementById('s-time');
-  if (el) el.textContent = `${m}:${s}`;
+  if (el) el.textContent = m + ':' + s;
 }, 1000);
 
-// ─── EVENT LOG ────────────────────────────
-let eventCount = 0;
+// ─── EVENT LOG ─────────────────────────────
 function addEvent(msg, color) {
   const el = document.getElementById('event-log');
   if (!el) return;
-  eventCount++;
   const now = new Date().toLocaleTimeString('en-US', { hour12: false });
   const div = document.createElement('div');
-  div.style.cssText = `color:${color};margin-bottom:3px;padding-bottom:3px;border-bottom:1px solid rgba(255,255,255,0.05);`;
-  div.textContent = `[${now}] ${msg}`;
+  div.style.cssText = 'color:' + color + ';margin-bottom:3px;padding-bottom:3px;border-bottom:1px solid rgba(255,255,255,0.05);';
+  div.textContent = '[' + now + '] ' + msg;
   el.prepend(div);
   while (el.children.length > 30) el.removeChild(el.lastChild);
 }
 
-// ─── INIT ─────────────────────────────────
+// ─── INIT (called after login) ─────────────
 async function init() {
-  await openDB();
-  sysLog('Firebase Firestore initialized');
+  sysLog('System initializing for: ' + (currentTenant ? currentTenant.label : '—'));
   await loadModels();
   await startCamera('reg-video', 'register');
-  await refreshRecentEntries();
-  sysLog('BATCOM ONLINE...');
-
-  // Dismiss alert on click
+  refreshRecentEntries();
   document.getElementById('alert-banner').addEventListener('click', dismissAlert);
-}
- 
-init();
-</script>
-</body>
-</html>
-    }
-
-    // === YAWN LOGIC ===
-    if (mar > YAWN_THRESHOLD) {
-      if (!yawnSince) yawnSince = now;
-      const yawnDur = now - yawnSince;
-      document.getElementById('m-mouth').textContent = 'YAWNING';
-      document.getElementById('m-mouth').style.color = 'var(--yellow)';
-      document.getElementById('badge-mouth').textContent = 'YAWN DETECTED';
-      document.getElementById('badge-mouth').className = 'badge yellow';
-      if (yawnDur >= YAWN_DURATION_MS && fatigueLevel === 'normal') fatigueLevel = 'warning';
-    } else {
-      yawnSince = null;
-      document.getElementById('m-mouth').textContent = 'NORMAL';
-      document.getElementById('m-mouth').style.color = 'var(--text)';
-      document.getElementById('badge-mouth').textContent = 'MOUTH: OK';
-      document.getElementById('badge-mouth').className = 'badge accent';
-    }
-
-    // === HEAD TILT LOGIC ===
-    const absTilt = Math.abs(tilt);
-    if (absTilt > HEAD_TILT_WARN) {
-      if (!headTiltSince) headTiltSince = now;
-      const tiltDur = now - headTiltSince;
-      document.getElementById('badge-tilt').textContent = `TILT: ${tilt.toFixed(0)}°`;
-      document.getElementById('badge-tilt').className = 'badge yellow';
-      if (tiltDur >= HEAD_TILT_DURATION_MS) {
-        if (absTilt > HEAD_TILT_CRIT && fatigueLevel !== 'critical') fatigueLevel = 'critical';
-        else if (fatigueLevel === 'normal') fatigueLevel = 'warning';
-      }
-    } else {
-      headTiltSince = null;
-      document.getElementById('badge-tilt').textContent = 'TILT: OK';
-      document.getElementById('badge-tilt').className = 'badge green';
-    }
-
-    // === UPDATE STATUS ===
-    updateFatigueStatus(fatigueLevel);
-
-    // Draw HUD text on canvas
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(0, 0, 200, 70);
-    ctx.font = '500 12px Inter';
-    ctx.fillStyle = eyesClosed ? '#ff2244' : '#facc15';
-    ctx.fillText(`EAR: ${earAvg.toFixed(3)} [${eyesClosed ? 'CLOSED' : 'OPEN'}]`, 8, 16);
-    ctx.fillStyle = mar > YAWN_THRESHOLD ? '#ffcc00' : '#facc15';
-    ctx.fillText(`MAR: ${mar.toFixed(3)} [${mar > YAWN_THRESHOLD ? 'YAWN' : 'NORMAL'}]`, 8, 30);
-    ctx.fillStyle = absTilt > HEAD_TILT_WARN ? '#ffcc00' : '#facc15';
-    ctx.fillText(`TILT: ${tilt.toFixed(1)}°`, 8, 44);
-    ctx.fillStyle = fatigueLevel === 'critical' ? '#ff2244' : fatigueLevel === 'warning' ? '#ffcc00' : '#00ff88';
-    ctx.fillText(`STATUS: ${fatigueLevel.toUpperCase()}`, 8, 58);
-
-  }, 100);
+  sysLog('Sentinel DMS online');
 }
 
-
-function updateFatigueStatus(level) {
-  const box = document.getElementById('fatigue-status-box');
-  const label = document.getElementById('fatigue-label');
-  const sub = document.getElementById('fatigue-sub');
-
-  box.className = level === 'critical' ? 'critical' : level === 'warning' ? 'warning' : '';
-  if (level === 'normal') {
-    label.textContent = 'NORMAL';
-    label.style.color = 'var(--green)';
-    sub.textContent = 'All parameters nominal';
-    box.style.borderColor = 'var(--green)';
-    dismissAlert();
-  } else if (level === 'warning') {
-    label.textContent = 'WARNING';
-    label.style.color = 'var(--yellow)';
-    sub.textContent = 'Fatigue signs detected';
-    box.style.borderColor = 'var(--yellow)';
-    addEvent('⚠ FATIGUE WARNING', 'var(--yellow)');
-  } else if (level === 'critical') {
-    if (!alertActive) {
-      label.textContent = 'CRITICAL';
-      label.style.color = 'var(--red)';
-      sub.textContent = 'DRIVER DROWSY — TAKE ACTION';
-      box.style.borderColor = 'var(--red)';
-      triggerAlert();
-    }
-  }
-}
-
-function triggerAlert() {
-  if (alertActive) return;
-  alertActive = true;
-  sessionAlertCount++;
-  document.getElementById('s-alerts').textContent = sessionAlertCount;
-  document.getElementById('alert-overlay').style.display = 'block';
-  document.getElementById('alert-banner').style.display = 'block';
-  addEvent('🚨 CRITICAL ALERT TRIGGERED', 'var(--red)');
-  if (soundEnabled) startBuzzer();
-  // ─── Log drowsiness event to Firestore ───
-  const user = fbAuth.currentUser;
-  db.collection('logs').add({
-    name: currentDriver || 'unknown',
-    type: 'drowsiness_alert',
-    status: 'critical',
-    entry_time: new Date().toLocaleTimeString('en-US', { hour12: false }),
-    date: new Date().toLocaleDateString('en-GB'),
-    timestamp: Date.now(),
-    uid: user ? user.uid : null
-  }).catch(e => sysLog('⚠ Firestore log error: ' + e.message));
-}
-
-function dismissAlert() {
-  alertActive = false;
-  document.getElementById('alert-overlay').style.display = 'none';
-  document.getElementById('alert-banner').style.display = 'none';
-  stopBuzzer();
-}
-
-// ─── AUDIO BUZZER ─────────────────────────
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return audioCtx;
-}
-
-function startBuzzer() {
-  stopBuzzer();
-  if (!soundEnabled) return;
-  let beepCount = 0;
-  buzzInterval = setInterval(() => {
-    if (!alertActive || !soundEnabled) { stopBuzzer(); return; }
-    playBeep(880, 0.2, 0.3);
-    beepCount++;
-  }, 500);
-}
-
-function playBeep(freq, vol, dur) {
-  try {
-    const ctx = getAudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'square';
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(vol, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + dur);
-  } catch(e) {}
-}
-
-function stopBuzzer() {
-  if (buzzInterval) { clearInterval(buzzInterval); buzzInterval = null; }
-}
-
-function toggleSound() {
-  soundEnabled = !soundEnabled;
-  const btns = [document.getElementById('sound-btn'), document.getElementById('sound-toggle2')];
-  btns.forEach(b => { if (b) b.textContent = soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF'; });
-  if (!soundEnabled) stopBuzzer();
-  sysLog(`Sound ${soundEnabled ? 'enabled' : 'disabled'}`);
-}
-
-// ─── SESSION TIMER ─────────────────────────
-setInterval(() => {
-  if (!sessionStart) return;
-  const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
-  const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
-  const s = String(elapsed % 60).padStart(2, '0');
-  const el = document.getElementById('s-time');
-  if (el) el.textContent = `${m}:${s}`;
-}, 1000);
-
-// ─── EVENT LOG ────────────────────────────
-let eventCount = 0;
-function addEvent(msg, color) {
-  const el = document.getElementById('event-log');
-  if (!el) return;
-  eventCount++;
-  const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-  const div = document.createElement('div');
-  div.style.cssText = `color:${color};margin-bottom:3px;padding-bottom:3px;border-bottom:1px solid rgba(255,255,255,0.05);`;
-  div.textContent = `[${now}] ${msg}`;
-  el.prepend(div);
-  while (el.children.length > 30) el.removeChild(el.lastChild);
-}
-
-// ─── INIT ─────────────────────────────────
-async function init() {
-  await openDB();
-  sysLog('Firebase Firestore initialized');
-  await loadModels();
-  await startCamera('reg-video', 'register');
-  await refreshRecentEntries();
-  sysLog('BATCOM ONLINE...');
-
-  // Dismiss alert on click
-  document.getElementById('alert-banner').addEventListener('click', dismissAlert);
-}
- 
-init();
-</script>
-</body>
-</html>
 </script>
 </body>
 </html>
