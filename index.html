@@ -59,9 +59,7 @@ body, input, button, table, th, td {
 
   animation: batPulse 3s infinite ease-in-out;
 }
-body {
-  background: red !important;
-}
+
 @keyframes batPulse {
   0%,100% {
     opacity: 0.1;
@@ -1031,8 +1029,8 @@ video, canvas.overlay {
 // ─── CONFIG ───────────────────────────────
 const MODELS_URL = '/models';
 const CAPTURE_TARGET = 80;
-const EAR_CLOSED_THRESHOLD = 0.20;
-const EAR_OPEN_THRESHOLD = 0.25;
+const EAR_CLOSED_THRESHOLD = 0.23;
+const EAR_OPEN_THRESHOLD = 0.28;
 const BLINK_MIN_MS = 80;
 const BLINK_MAX_MS = 400;
 const DROWSY_WARN_MS = 1600;
@@ -1371,7 +1369,12 @@ async function startRegistration() {
 
       if (captureCount >= CAPTURE_TARGET) {
         clearInterval(interval);
-        await saveDriver();
+
+        if (isRegistering) {
+          isRegistering = false;   // 🔥 IMPORTANT (prevents multiple calls)
+          console.log("FINAL SAVE TRIGGERED");
+          await saveDriver();
+        }
       }
     } else {
       ctx.strokeStyle = 'rgba(255,34,68,0.5)';
@@ -1385,45 +1388,113 @@ async function startRegistration() {
 }
 
 async function saveDriver() {
-  document.getElementById('capture-status').textContent = 'Processing...';
-  sysLog(`Saving ${regName} — ${capturedDescriptors.length} descriptors`);
+  try {
+    console.log("===== SAVE START =====");
 
-  const serializableDescs = capturedDescriptors.map(d => Array.from(d));
- await db.collection("drivers").doc(regName).set({
+    if (!capturedDescriptors || capturedDescriptors.length === 0) {
+      alert("No face data captured!");
+      return;
+    }
+
+const serializableDescs = [];
+
+// 🔥 FORCE FLATTEN EVERYTHING
+function flattenDeep(arr) {
+  arr.forEach(item => {
+    if (Array.isArray(item) || item instanceof Float32Array) {
+      flattenDeep(Array.from(item));
+    } else {
+      serializableDescs.push(item);
+    }
+  });
+}
+
+flattenDeep(capturedDescriptors);
+
+console.log("FINAL LENGTH:", serializableDescs.length);
+console.log("CHECK TYPE:", typeof serializableDescs[0]);
+
+await db.collection("drivers").doc(regName).set({
   name: regName,
   descriptors: serializableDescs,
   createdAt: new Date()
 });
 
-  isRegistering = false;
-  document.getElementById('start-reg-btn').disabled = false;
-  document.getElementById('capture-status').textContent = `✓ ${regName} registered!`;
-  document.getElementById('reg-name').value = '';
-  sysLog(`✓ Driver ${regName} saved to Firestore`);
-  await loadFaceMatcher();
-  refreshRegisteredUsers();
-}
+console.log("✅ FIRESTORE SUCCESS");
 
+alert("✅ Driver Registered");
+await loadFaceMatcher();
+await refreshRegisteredUsers();
+// RESET
+isRegistering = false;
+captureCount = 0;
+capturedDescriptors = [];
+
+document.getElementById('start-reg-btn').disabled = false;
+document.getElementById('capture-status').textContent = `✓ ${regName} registered!`;
+document.getElementById('reg-name').value = '';
+
+    await loadFaceMatcher();
+    refreshRegisteredUsers();
+
+  } catch (err) {
+    console.error("🔥 FIRESTORE ERROR:", err);
+    alert("❌ SAVE FAILED: " + err.message);
+  }
+}
 async function loadFaceMatcher() {
-  const drivers = await dbGetAll('drivers');
-  if (!drivers.length) { faceMatcher = null; return; }
-  const labeledDescriptors = drivers.map(d => {
-    const descs = d.descriptors.map(arr => new Float32Array(arr));
-    return new faceapi.LabeledFaceDescriptors(d.name, descs);
+  console.log("🔄 Loading drivers from Firestore...");
+
+  const snapshot = await db.collection("drivers").get();
+
+  if (snapshot.empty) {
+    console.log("❌ No drivers in DB");
+    faceMatcher = null;
+    return;
+  }
+
+  const labeledDescriptors = [];
+
+  snapshot.forEach(doc => {
+    const data = doc.data();
+
+    console.log("Driver found:", data.name);
+
+    const descArray = [];
+
+    // 🔥 convert flat array → 128 chunks
+    for (let i = 0; i < data.descriptors.length; i += 128) {
+      const slice = data.descriptors.slice(i, i + 128);
+      descArray.push(new Float32Array(slice));
+    }
+
+    labeledDescriptors.push(
+      new faceapi.LabeledFaceDescriptors(data.name, descArray)
+    );
   });
-  faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, RECOG_THRESHOLD);
-  sysLog(`Face matcher loaded (${drivers.length} drivers)`);
-}
 
+  faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.5);
+
+  console.log("✅ FaceMatcher READY:", labeledDescriptors.length);
+}
 async function refreshRegisteredUsers() {
-  const drivers = await dbGetAll('drivers');
-  const container = document.getElementById('reg-users-list');
-  if (!drivers.length) { container.innerHTML = '<span class="text-sm">No drivers registered.</span>'; return; }
-  container.innerHTML = drivers.map(d =>
-    `<div class="user-pill"><span>◈</span> ${d.name}</div>`
-  ).join('');
-}
+  const container = document.querySelector("#reg-users-list");
 
+  const snapshot = await db.collection("drivers").get();
+
+  if (snapshot.empty) {
+    container.innerHTML = "No drivers registered.";
+    return;
+  }
+
+  let html = "";
+
+  snapshot.forEach(doc => {
+    html += `<div>${doc.data().name}</div>`;
+  });
+
+  container.innerHTML = html;
+}
 async function clearAllData() {
   if (!confirm('Clear ALL registered drivers? This cannot be undone.')) return;
   await dbClear('drivers');
@@ -1681,7 +1752,7 @@ function startMonitoring() {
     const earL = computeEAR(leftEye);
     const earR = computeEAR(rightEye);
     const earAvg = (earL + earR) / 2;
-
+    console.log("EAR AVG:", earAvg);
     // ── MAR (mouth) ──
     const mouthPts = getMouthPoints(lm);
     const mar = computeMAR(mouthPts);
@@ -1768,7 +1839,7 @@ function startMonitoring() {
         }
         eyeClosedSince = null;
       }
-      lastEyeState = 'open';
+    } else {
       document.getElementById('m-eye').textContent = 'OPEN';
       document.getElementById('m-eye').style.color = 'var(--green)';
       document.getElementById('badge-eye').textContent = 'EYE: OPEN';
@@ -1969,6 +2040,209 @@ async function init() {
 }
  
 init();
+</script>
+</body>
+</html>
+    }
+
+    // === YAWN LOGIC ===
+    if (mar > YAWN_THRESHOLD) {
+      if (!yawnSince) yawnSince = now;
+      const yawnDur = now - yawnSince;
+      document.getElementById('m-mouth').textContent = 'YAWNING';
+      document.getElementById('m-mouth').style.color = 'var(--yellow)';
+      document.getElementById('badge-mouth').textContent = 'YAWN DETECTED';
+      document.getElementById('badge-mouth').className = 'badge yellow';
+      if (yawnDur >= YAWN_DURATION_MS && fatigueLevel === 'normal') fatigueLevel = 'warning';
+    } else {
+      yawnSince = null;
+      document.getElementById('m-mouth').textContent = 'NORMAL';
+      document.getElementById('m-mouth').style.color = 'var(--text)';
+      document.getElementById('badge-mouth').textContent = 'MOUTH: OK';
+      document.getElementById('badge-mouth').className = 'badge accent';
+    }
+
+    // === HEAD TILT LOGIC ===
+    const absTilt = Math.abs(tilt);
+    if (absTilt > HEAD_TILT_WARN) {
+      if (!headTiltSince) headTiltSince = now;
+      const tiltDur = now - headTiltSince;
+      document.getElementById('badge-tilt').textContent = `TILT: ${tilt.toFixed(0)}°`;
+      document.getElementById('badge-tilt').className = 'badge yellow';
+      if (tiltDur >= HEAD_TILT_DURATION_MS) {
+        if (absTilt > HEAD_TILT_CRIT && fatigueLevel !== 'critical') fatigueLevel = 'critical';
+        else if (fatigueLevel === 'normal') fatigueLevel = 'warning';
+      }
+    } else {
+      headTiltSince = null;
+      document.getElementById('badge-tilt').textContent = 'TILT: OK';
+      document.getElementById('badge-tilt').className = 'badge green';
+    }
+
+    // === UPDATE STATUS ===
+    updateFatigueStatus(fatigueLevel);
+
+    // Draw HUD text on canvas
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, 200, 70);
+    ctx.font = '500 12px Inter';
+    ctx.fillStyle = eyesClosed ? '#ff2244' : '#facc15';
+    ctx.fillText(`EAR: ${earAvg.toFixed(3)} [${eyesClosed ? 'CLOSED' : 'OPEN'}]`, 8, 16);
+    ctx.fillStyle = mar > YAWN_THRESHOLD ? '#ffcc00' : '#facc15';
+    ctx.fillText(`MAR: ${mar.toFixed(3)} [${mar > YAWN_THRESHOLD ? 'YAWN' : 'NORMAL'}]`, 8, 30);
+    ctx.fillStyle = absTilt > HEAD_TILT_WARN ? '#ffcc00' : '#facc15';
+    ctx.fillText(`TILT: ${tilt.toFixed(1)}°`, 8, 44);
+    ctx.fillStyle = fatigueLevel === 'critical' ? '#ff2244' : fatigueLevel === 'warning' ? '#ffcc00' : '#00ff88';
+    ctx.fillText(`STATUS: ${fatigueLevel.toUpperCase()}`, 8, 58);
+
+  }, 100);
+}
+
+
+function updateFatigueStatus(level) {
+  const box = document.getElementById('fatigue-status-box');
+  const label = document.getElementById('fatigue-label');
+  const sub = document.getElementById('fatigue-sub');
+
+  box.className = level === 'critical' ? 'critical' : level === 'warning' ? 'warning' : '';
+  if (level === 'normal') {
+    label.textContent = 'NORMAL';
+    label.style.color = 'var(--green)';
+    sub.textContent = 'All parameters nominal';
+    box.style.borderColor = 'var(--green)';
+    dismissAlert();
+  } else if (level === 'warning') {
+    label.textContent = 'WARNING';
+    label.style.color = 'var(--yellow)';
+    sub.textContent = 'Fatigue signs detected';
+    box.style.borderColor = 'var(--yellow)';
+    addEvent('⚠ FATIGUE WARNING', 'var(--yellow)');
+  } else if (level === 'critical') {
+    if (!alertActive) {
+      label.textContent = 'CRITICAL';
+      label.style.color = 'var(--red)';
+      sub.textContent = 'DRIVER DROWSY — TAKE ACTION';
+      box.style.borderColor = 'var(--red)';
+      triggerAlert();
+    }
+  }
+}
+
+function triggerAlert() {
+  if (alertActive) return;
+  alertActive = true;
+  sessionAlertCount++;
+  document.getElementById('s-alerts').textContent = sessionAlertCount;
+  document.getElementById('alert-overlay').style.display = 'block';
+  document.getElementById('alert-banner').style.display = 'block';
+  addEvent('🚨 CRITICAL ALERT TRIGGERED', 'var(--red)');
+  if (soundEnabled) startBuzzer();
+  // ─── Log drowsiness event to Firestore ───
+  const user = fbAuth.currentUser;
+  db.collection('logs').add({
+    name: currentDriver || 'unknown',
+    type: 'drowsiness_alert',
+    status: 'critical',
+    entry_time: new Date().toLocaleTimeString('en-US', { hour12: false }),
+    date: new Date().toLocaleDateString('en-GB'),
+    timestamp: Date.now(),
+    uid: user ? user.uid : null
+  }).catch(e => sysLog('⚠ Firestore log error: ' + e.message));
+}
+
+function dismissAlert() {
+  alertActive = false;
+  document.getElementById('alert-overlay').style.display = 'none';
+  document.getElementById('alert-banner').style.display = 'none';
+  stopBuzzer();
+}
+
+// ─── AUDIO BUZZER ─────────────────────────
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function startBuzzer() {
+  stopBuzzer();
+  if (!soundEnabled) return;
+  let beepCount = 0;
+  buzzInterval = setInterval(() => {
+    if (!alertActive || !soundEnabled) { stopBuzzer(); return; }
+    playBeep(880, 0.2, 0.3);
+    beepCount++;
+  }, 500);
+}
+
+function playBeep(freq, vol, dur) {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + dur);
+  } catch(e) {}
+}
+
+function stopBuzzer() {
+  if (buzzInterval) { clearInterval(buzzInterval); buzzInterval = null; }
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  const btns = [document.getElementById('sound-btn'), document.getElementById('sound-toggle2')];
+  btns.forEach(b => { if (b) b.textContent = soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF'; });
+  if (!soundEnabled) stopBuzzer();
+  sysLog(`Sound ${soundEnabled ? 'enabled' : 'disabled'}`);
+}
+
+// ─── SESSION TIMER ─────────────────────────
+setInterval(() => {
+  if (!sessionStart) return;
+  const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+  const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const s = String(elapsed % 60).padStart(2, '0');
+  const el = document.getElementById('s-time');
+  if (el) el.textContent = `${m}:${s}`;
+}, 1000);
+
+// ─── EVENT LOG ────────────────────────────
+let eventCount = 0;
+function addEvent(msg, color) {
+  const el = document.getElementById('event-log');
+  if (!el) return;
+  eventCount++;
+  const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const div = document.createElement('div');
+  div.style.cssText = `color:${color};margin-bottom:3px;padding-bottom:3px;border-bottom:1px solid rgba(255,255,255,0.05);`;
+  div.textContent = `[${now}] ${msg}`;
+  el.prepend(div);
+  while (el.children.length > 30) el.removeChild(el.lastChild);
+}
+
+// ─── INIT ─────────────────────────────────
+async function init() {
+  await openDB();
+  sysLog('Firebase Firestore initialized');
+  await loadModels();
+  await startCamera('reg-video', 'register');
+  await refreshRecentEntries();
+  sysLog('BATCOM ONLINE...');
+
+  // Dismiss alert on click
+  document.getElementById('alert-banner').addEventListener('click', dismissAlert);
+}
+ 
+init();
+</script>
+</body>
+</html>
 </script>
 </body>
 </html>
